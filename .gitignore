@@ -9,3 +9,4 @@ wheels/
 # Virtual environments
 .venv
 frontend_agent/workspace-fe-developer/node_modules
+.env
