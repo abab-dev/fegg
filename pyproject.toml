@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "e2b-code-interpreter>=2.4.1",
     "langchain-core>=1.2.5",
     "langchain-openai>=1.1.6",
     "langgraph>=1.0.5",
