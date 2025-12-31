@@ -15,6 +15,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 from langgraph.graph import StateGraph, START, END, MessagesState
+from pydantic import BaseModel, Field
 
 from repomind.client import RepoMind
 from bashtools import AsyncProcessExecutor
@@ -35,7 +36,7 @@ ZAI_MODEL_NAME = os.getenv("ZAI_MODEL_NAME", "GLM-4.5-air")
 ZAI_BASE_URL = os.getenv("ZAI_BASE_URL")
 ZAI_API_KEY = os.getenv("ZAI_API_KEY")
 
-MAX_ITERATIONS = 50
+MAX_ITERATIONS = 100
 
 
 # ============================================================================
@@ -55,7 +56,9 @@ class Logger:
 
     @staticmethod
     def log_agent(content: str):
-        print(f"\n{Logger.BLUE}{Logger.BOLD}[Agent]:{Logger.ENDC} {content}")
+        print(
+            f"\n{Logger.BLUE}{Logger.BOLD}[Agent]:{Logger.ENDC} {content}", flush=True
+        )
 
     @staticmethod
     def log_tool_call(tool_name: str, args: Dict):
@@ -67,17 +70,17 @@ class Logger:
             else:
                 args_display[k] = v
         args_str = json.dumps(args_display, indent=2)
-        print(f"\n{Logger.YELLOW}>>> {tool_name}{Logger.ENDC}")
-        print(f"{Logger.YELLOW}{args_str}{Logger.ENDC}")
+        print(f"\n{Logger.YELLOW}>>> {tool_name}{Logger.ENDC}", flush=True)
+        print(f"{Logger.YELLOW}{args_str}{Logger.ENDC}", flush=True)
 
     @staticmethod
     def log_tool_result(tool_name: str, result: str):
         display = result[:300] + "..." if len(result) > 300 else result
-        print(f"{Logger.GREEN}<<< {tool_name}: {display}{Logger.ENDC}")
+        print(f"{Logger.GREEN}<<< {tool_name}: {display}{Logger.ENDC}", flush=True)
 
     @staticmethod
     def log_system(msg: str):
-        print(f"{Logger.CYAN}[System] {msg}{Logger.ENDC}")
+        print(f"{Logger.CYAN}[System] {msg}{Logger.ENDC}", flush=True)
 
 
 # ============================================================================
@@ -111,88 +114,96 @@ def init_workspace(force: bool = False) -> Path:
 
 def create_tools(workspace: Path):
     """Create tools for the frontend agent."""
-    
+
     # Initialize RepoMind for the workspace
     rm = RepoMind(str(workspace))
-    
+
     # Bash executor for npm commands
     bash = AsyncProcessExecutor(str(workspace), timeout=120)
-    
+
+    # Create a persistent event loop for all async operations
+    # This is stored as an attribute so it can be used across tool calls
+    loop = asyncio.new_event_loop()
+
+    def run_async(coro):
+        """Run async code in the persistent event loop."""
+        return loop.run_until_complete(coro)
+
     # Tool 1: Blocking command for terminating commands (build, install, lint)
+    class RunCommandInput(BaseModel):
+        command: str = Field(description="The command to run (e.g., 'npm run build')")
+        timeout: int = Field(default=60, description="Max seconds to wait (default 60)")
+
     def run_command(command: str, timeout: int = 60) -> dict:
         """
         Run a shell command that terminates (completes and exits).
-        
+
         Use for: npm run build, npm install, npm run lint, etc.
         DO NOT use for: npm run dev (use start_dev_server instead).
-        
-        Args:
-            command: The command to run (e.g., "npm run build")
-            timeout: Max seconds to wait (default 60)
-            
-        Returns:
-            dict with exit_code, output, and status
         """
         try:
-            result = asyncio.run(bash.run_command(command, timeout=timeout))
+            result = run_async(bash.run_command(command, timeout=timeout))
             return result
         except Exception as e:
             return {"error": str(e)}
-    
+
     # Tool 2: Non-blocking for dev servers
+    class StartDevServerInput(BaseModel):
+        command: str = Field(
+            default="npm run dev",
+            description="Dev server command (default: 'npm run dev')",
+        )
+
     def start_dev_server(command: str = "npm run dev") -> dict:
         """
         Start a development server in the background.
-        
+
         Returns immediately after server starts. Automatically kills previous dev server.
-        
-        Args:
-            command: Dev server command (default: "npm run dev")
-            
-        Returns:
-            dict with cmd_id, status, url (if detected), and initial output
+        Can be called with no arguments - defaults to 'npm run dev'.
         """
         try:
-            result = asyncio.run(bash.run_background(command, wait_for_output=3.0))
+            result = run_async(bash.run_background(command, wait_for_output=5.0))
             return result
         except Exception as e:
             return {"error": str(e)}
-    
+
     # Tool 3: Read output from running/completed command
+    class ReadOutputInput(BaseModel):
+        cmd_id: str = Field(
+            description="Command ID from run_command or start_dev_server"
+        )
+        last_lines: int = Field(
+            default=50, description="Number of lines to read from end (default 50)"
+        )
+
     def read_output(cmd_id: str, last_lines: int = 50) -> dict:
         """
         Read recent output from a command (running or completed).
-        
-        Args:
-            cmd_id: Command ID from run_command or start_dev_server
-            last_lines: Number of lines to read from end (default 50)
-            
-        Returns:
-            dict with lines, is_running status, and total_lines
+
+        Use this to check on a running dev server or see full output from a completed command.
         """
         try:
             result = bash.read_log(cmd_id, limit=last_lines, from_end=True)
             return result
         except Exception as e:
             return {"error": str(e)}
-    
+
     # Tool 4: Stop a running command
+    class StopCommandInput(BaseModel):
+        cmd_id: str = Field(description="Command ID from start_dev_server")
+
     def stop_command(cmd_id: str) -> dict:
         """
         Stop a running background command (e.g., dev server).
-        
-        Args:
-            cmd_id: Command ID from start_dev_server
-            
-        Returns:
-            dict with status and exit_code
+
+        Use this to terminate a dev server started with start_dev_server.
         """
         try:
-            result = asyncio.run(bash.terminate(cmd_id))
+            result = run_async(bash.terminate(cmd_id))
             return result
         except Exception as e:
             return {"error": str(e)}
-    
+
     # Core tools
     tools = [
         rm.fs.read_file,
@@ -202,17 +213,37 @@ def create_tools(workspace: Path):
         rm.search.grep_string,
         rm.edit.apply_file_edit,
     ]
-    
+
     # Wrap all tools
     wrapped_tools = [StructuredTool.from_function(t) for t in tools]
-    
-    # Add bash tools
-    wrapped_tools.append(StructuredTool.from_function(run_command))
-    wrapped_tools.append(StructuredTool.from_function(start_dev_server))
-    wrapped_tools.append(StructuredTool.from_function(read_output))
-    wrapped_tools.append(StructuredTool.from_function(stop_command))
-    
-    return wrapped_tools, bash  # Return bash for cleanup
+
+    # Add bash tools with explicit schemas for proper parameter handling
+    wrapped_tools.append(
+        StructuredTool.from_function(
+            run_command,
+            args_schema=RunCommandInput,
+        )
+    )
+    wrapped_tools.append(
+        StructuredTool.from_function(
+            start_dev_server,
+            args_schema=StartDevServerInput,
+        )
+    )
+    wrapped_tools.append(
+        StructuredTool.from_function(
+            read_output,
+            args_schema=ReadOutputInput,
+        )
+    )
+    wrapped_tools.append(
+        StructuredTool.from_function(
+            stop_command,
+            args_schema=StopCommandInput,
+        )
+    )
+
+    return wrapped_tools, bash, loop  # Return bash and loop for cleanup
 
 
 # ============================================================================
@@ -236,37 +267,41 @@ def get_llm():
 
 def create_agent_node(system_prompt: str, tools: list):
     """Create the main agent node."""
-    
+
     llm = get_llm()
     llm_bound = llm.bind_tools(tools)
     tool_map = {t.name: t for t in tools}
-    
+
     def agent_node(state: MessagesState):
         messages = state["messages"]
         prompt = [SystemMessage(content=system_prompt)] + messages
         response = llm_bound.invoke(prompt)
-        
+
         if response.content:
             Logger.log_agent(response.content)
-        
+
         return {"messages": [response]}
-    
+
     def tool_executor(state: MessagesState) -> Dict[str, Any]:
         """Execute tools called by agent."""
         messages = state["messages"]
         last_message = messages[-1]
-        
+
         if not isinstance(last_message, AIMessage) or not last_message.tool_calls:
             return {"messages": []}
-        
+
         results = []
         for tool_call in last_message.tool_calls:
             name = tool_call["name"]
             args = tool_call["args"]
             tool_id = tool_call["id"]
-            
+
+            # Sanitize tool name (LLMs sometimes add parens)
+            if name.endswith("()"):
+                name = name[:-2]
+
             Logger.log_tool_call(name, args)
-            
+
             if name in tool_map:
                 try:
                     output = tool_map[name].invoke(args)
@@ -274,19 +309,19 @@ def create_agent_node(system_prompt: str, tools: list):
                     output = f"Error: {e}"
             else:
                 output = f"Unknown tool: {name}"
-            
+
             Logger.log_tool_result(name, str(output)[:200])
-            
+
             results.append(ToolMessage(content=str(output), tool_call_id=tool_id))
-        
+
         return {"messages": results}
-    
+
     def router(state: MessagesState) -> Literal["tools", END]:
         last = state["messages"][-1]
         if isinstance(last, AIMessage) and last.tool_calls:
             return "tools"
         return END
-    
+
     return agent_node, tool_executor, router
 
 
@@ -297,28 +332,28 @@ def create_agent_node(system_prompt: str, tools: list):
 
 def build_graph(workspace: Path):
     """Build the LangGraph for frontend agent."""
-    
+
     # Get workspace root as string
     workspace_root = str(workspace.resolve())
-    
+
     # Create prompt and tools
     system_prompt = get_frontend_agent_prompt(workspace_root)
-    tools, bash_executor = create_tools(workspace)
-    
+    tools, bash_executor, event_loop = create_tools(workspace)
+
     # Create nodes
     agent_node, tool_executor, router = create_agent_node(system_prompt, tools)
-    
+
     # Build graph
     builder = StateGraph(MessagesState)
-    
+
     builder.add_node("agent", agent_node)
     builder.add_node("tools", tool_executor)
-    
+
     builder.add_edge(START, "agent")
     builder.add_conditional_edges("agent", router, {"tools": "tools", END: END})
     builder.add_edge("tools", "agent")
-    
-    return builder.compile(), bash_executor
+
+    return builder.compile(), bash_executor, event_loop
 
 
 # ============================================================================
@@ -328,53 +363,94 @@ def build_graph(workspace: Path):
 
 def run_agent(query: str, reset_workspace: bool = False):
     """Run the frontend agent with a query."""
-    
+
     # Initialize workspace
     workspace = init_workspace(force=reset_workspace)
-    
+
     # Build graph
-    graph, bash_executor = build_graph(workspace)
-    
+    graph, bash_executor, event_loop = build_graph(workspace)
+
     # Run
     config = {"recursion_limit": MAX_ITERATIONS}
-    
-    print(f"\n{Logger.HEADER}{'='*50}{Logger.ENDC}")
-    print(f"{Logger.BOLD}Query:{Logger.ENDC} {query}")
-    print(f"{Logger.HEADER}{'='*50}{Logger.ENDC}")
-    
+
+    print(f"\n{Logger.HEADER}{'=' * 50}{Logger.ENDC}", flush=True)
+    print(f"{Logger.BOLD}Query:{Logger.ENDC} {query}", flush=True)
+    print(f"{Logger.HEADER}{'=' * 50}{Logger.ENDC}", flush=True)
+
     try:
         final_state = graph.invoke(
-            {"messages": [HumanMessage(content=query)]},
-            config=config
+            {"messages": [HumanMessage(content=query)]}, config=config
         )
-        print(f"\n{Logger.HEADER}=== Done ==={Logger.ENDC}")
+        print(f"\n{Logger.HEADER}=== Done ==={Logger.ENDC}", flush=True)
         return final_state
     except Exception as e:
-        print(f"\n{Logger.RED}Error: {e}{Logger.ENDC}")
+        print(f"\n{Logger.RED}Error: {e}{Logger.ENDC}", flush=True)
         import traceback
+
         traceback.print_exc()
         return None
     finally:
-        # Cleanup: terminate any running background processes
+        # Cleanup: terminate any running background processes using the persistent loop
         try:
-            cleanup_result = asyncio.run(bash_executor.cleanup_all())
+            cleanup_result = event_loop.run_until_complete(bash_executor.cleanup_all())
             if cleanup_result.get("terminated_count", 0) > 0:
-                Logger.log_system(f"Cleaned up {cleanup_result['terminated_count']} background process(es)")
+                Logger.log_system(
+                    f"Cleaned up {cleanup_result['terminated_count']} background process(es)"
+                )
         except Exception:
             pass  # Best effort cleanup
+        finally:
+            # Close the event loop
+            try:
+                event_loop.close()
+            except Exception:
+                pass
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Frontend Agent - Lovable-like frontend builder"
+    )
+    parser.add_argument(
+        "--reset", "-r", action="store_true", help="Reset workspace from template"
+    )
+    parser.add_argument("--query", "-q", type=str, help="Task query for the agent")
+    parser.add_argument(
+        "--interactive",
+        "-i",
+        action="store_true",
+        help="Run in interactive mode (prompts for input)",
+    )
+
+    args = parser.parse_args()
+
     print(f"{Logger.HEADER}=== Frontend Agent ==={Logger.ENDC}")
     print(f"Template: {TEMPLATE_PATH}")
     print(f"Workspace: {WORKSPACE_PATH}")
     print(f"Model: {ZAI_MODEL_NAME}")
-    
-    # Check if user wants to reset
-    reset = input("Reset workspace? (y/N): ").lower() == "y"
-    
-    # Get query
-    default_query = "Create a beautiful landing page for a SaaS product called 'TaskFlow' - a project management tool."
-    query = input(f"\nQuery (default: '{default_query[:50]}...'): ") or default_query
-    
+
+    if args.interactive:
+        # Interactive mode (original behavior)
+        reset = input("Reset workspace? (y/N): ").lower() == "y"
+        default_query = "Create a beautiful landing page for a SaaS product called 'TaskFlow' - a project management tool."
+        query = (
+            input(f"\nQuery (default: '{default_query[:50]}...'): ") or default_query
+        )
+    else:
+        # Non-interactive mode
+        reset = args.reset
+        query = (
+            args.query
+            or "Create a beautiful landing page for a SaaS product called 'TaskFlow' - a project management tool."
+        )
+
+    print(f"\n{Logger.CYAN}Reset workspace: {reset}{Logger.ENDC}")
+    print(
+        f"{Logger.CYAN}Query: {query[:100]}...{Logger.ENDC}"
+        if len(query) > 100
+        else f"{Logger.CYAN}Query: {query}{Logger.ENDC}"
+    )
+
     run_agent(query, reset_workspace=reset)
