@@ -27,10 +27,9 @@ class CommandLog:
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: Optional[datetime] = None
     is_running: bool = True
-    pagination_count: int = 0  # Track how many times agent paginated
-    # Background execution support
+    pagination_count: int = 0
     process: Optional[asyncio.subprocess.Process] = None
-    output_buffer: list = field(default_factory=list)  # Real-time output for running processes
+    output_buffer: list = field(default_factory=list)
     _reader_task: Optional[asyncio.Task] = None
 
 
@@ -49,7 +48,7 @@ class CommandLogStore:
         """Store a log, evicting old entries if needed."""
         self._evict_expired()
         if len(self._logs) >= self.max_entries:
-            self._logs.popitem(last=False)  # Remove oldest
+            self._logs.popitem(last=False)
         self._logs[log.cmd_id] = log
         self._logs.move_to_end(log.cmd_id)
 
@@ -58,7 +57,7 @@ class CommandLogStore:
         self._evict_expired()
         log = self._logs.get(cmd_id)
         if log:
-            self._logs.move_to_end(cmd_id)  # Mark as recently used
+            self._logs.move_to_end(cmd_id)
         return log
 
     def list_recent(self, limit: int = 5) -> list[str]:
@@ -179,7 +178,6 @@ class AsyncProcessExecutor:
         """Detect binary/garbage output."""
         if not text:
             return False
-        # High ratio of non-printable chars = binary
         non_printable = sum(1 for c in text[:1000] if ord(c) < 32 and c not in '\n\r\t')
         return non_printable > len(text[:1000]) * 0.1
 
@@ -190,7 +188,6 @@ class AsyncProcessExecutor:
         all_lines = log.stdout_lines + log.stderr_lines
         total_lines = len(all_lines)
 
-        # Check for binary
         sample = "".join(all_lines[:10])
         if self._is_binary(sample):
             return {
@@ -204,7 +201,6 @@ class AsyncProcessExecutor:
         is_noisy = self._is_noisy(log.command)
         success = log.exit_code == 0
 
-        # Decide what to show
         if verbose:
             # Full output requested
             output = "".join(all_lines)
@@ -366,15 +362,12 @@ class AsyncProcessExecutor:
     ) -> dict:
         """
         Start a command in the background (non-blocking).
-        
-        Use this for long-running commands like dev servers.
-        Returns immediately with cmd_id after capturing initial output.
-        
+
         Args:
             command: Shell command to run.
             cwd: Working directory (absolute, within root).
             wait_for_output: Seconds to wait for initial output (default 2s).
-        
+
         Returns:
             dict with cmd_id, status, initial_output, and detected port/url.
         """
@@ -390,11 +383,8 @@ class AsyncProcessExecutor:
         except ValueError as e:
             return {"error": str(e)}
 
-        # Kill any previous background process with same command pattern
-        # (e.g., kill old npm run dev before starting new one)
         await self._kill_similar_background(command)
 
-        # Create log entry
         cmd_id = str(uuid.uuid4())[:8]
         log = CommandLog(
             cmd_id=cmd_id,
@@ -411,18 +401,14 @@ class AsyncProcessExecutor:
                 stderr=asyncio.subprocess.PIPE,
                 env={**os.environ, "PYTHONUNBUFFERED": "1", "GIT_TERMINAL_PROMPT": "0"},
             )
-            
+
             log.process = proc
-            
-            # Start background reader task
+
             log._reader_task = asyncio.create_task(self._stream_output(log))
-            
-            # Wait briefly to capture initial output
+
             await asyncio.sleep(wait_for_output)
-            
-            # Check if process already exited (fast failure)
+
             if proc.returncode is not None:
-                # Process finished quickly - wait for reader to complete
                 try:
                     await asyncio.wait_for(log._reader_task, timeout=1.0)
                 except asyncio.TimeoutError:
@@ -435,11 +421,9 @@ class AsyncProcessExecutor:
                     "output": "".join(log.output_buffer[-30:]).rstrip(),
                     "total_lines": len(log.output_buffer),
                 }
-            
-            # Process still running - return initial output
+
             initial_output = "".join(log.output_buffer[-30:])
-            
-            # Try to detect port/URL from output
+
             url = self._detect_url(initial_output)
             
             result = {
@@ -470,11 +454,10 @@ class AsyncProcessExecutor:
 
     def _detect_url(self, output: str) -> Optional[str]:
         """Detect URL/port from command output."""
-        # Common patterns for dev servers
         patterns = [
-            r"Local:\s*(https?://[^\s]+)",           # Vite: Local: http://localhost:5173/
-            r"http://localhost:(\d+)",               # Generic localhost
-            r"http://127\.0\.0\.1:(\d+)",            # 127.0.0.1
+            r"Local:\s*(https?://[^\s]+)",
+            r"http://localhost:(\d+)",
+            r"http://127\.0\.0\.1:(\d+)",
             r"Server running (?:at|on)\s*(https?://[^\s]+)",
             r"listening on\s*(https?://[^\s]+)",
         ]
@@ -483,24 +466,21 @@ class AsyncProcessExecutor:
             match = re.search(pattern, output, re.IGNORECASE)
             if match:
                 url = match.group(1)
-                # If we captured just a port, build the URL
                 if url.isdigit():
                     url = f"http://localhost:{url}"
                 return url
-        
+
         return None
 
     async def _kill_similar_background(self, command: str) -> None:
         """Kill previous background processes running similar commands."""
-        # Extract command "signature" (e.g., "npm run dev" -> matches other "npm run dev")
-        cmd_words = command.split()[:3]  # First 3 words
+        cmd_words = command.split()[:3]
         
         for cmd_id in list(self.log_store._logs.keys()):
             log = self.log_store._logs.get(cmd_id)
             if log and log.is_running and log.process:
                 existing_words = log.command.split()[:3]
                 if cmd_words == existing_words:
-                    # Same command type - kill it
                     await self.terminate(cmd_id)
 
     async def terminate(self, cmd_id: str) -> dict:
@@ -514,32 +494,29 @@ class AsyncProcessExecutor:
             dict with status and final output.
         """
         log = self.log_store.get(cmd_id)
-        
+
         if log is None:
             return {"error": f"Command not found: {cmd_id}"}
-        
+
         if not log.is_running:
             return {
                 "cmd_id": cmd_id,
                 "status": "already_stopped",
                 "exit_code": log.exit_code,
             }
-        
+
         if log.process is None:
             return {"error": f"No process reference for: {cmd_id}"}
-        
+
         try:
-            # Try graceful termination first
             log.process.terminate()
-            
+
             try:
                 await asyncio.wait_for(log.process.wait(), timeout=3.0)
             except asyncio.TimeoutError:
-                # Force kill if doesn't respond
                 log.process.kill()
                 await log.process.wait()
-            
-            # Cancel reader task
+
             if log._reader_task and not log._reader_task.done():
                 log._reader_task.cancel()
                 try:
@@ -568,7 +545,7 @@ class AsyncProcessExecutor:
     async def cleanup_all(self) -> dict:
         """Terminate all running background processes. Call on session end."""
         terminated = []
-        
+
         for cmd_id in list(self.log_store._logs.keys()):
             log = self.log_store._logs.get(cmd_id)
             if log and log.is_running and log.process:
@@ -578,7 +555,7 @@ class AsyncProcessExecutor:
                     "command": log.command[:50],
                     "result": result.get("status"),
                 })
-        
+
         return {
             "terminated_count": len(terminated),
             "processes": terminated,
@@ -613,7 +590,6 @@ class AsyncProcessExecutor:
                 "hint": "Re-run the command if needed.",
             }
 
-        # Check pagination limit
         log.pagination_count += 1
         if log.pagination_count > self.max_pagination_calls:
             return {
@@ -622,8 +598,6 @@ class AsyncProcessExecutor:
                 "cmd_id": cmd_id,
             }
 
-        # For running processes, use output_buffer (real-time)
-        # For completed processes, use stdout/stderr lines
         if log.is_running and log.output_buffer:
             all_lines = log.output_buffer
         else:
@@ -635,22 +609,18 @@ class AsyncProcessExecutor:
             status_msg = "still starting..." if log.is_running else ""
             return {"cmd_id": cmd_id, "lines": status_msg, "total_lines": 0, "is_running": log.is_running}
 
-
-        # Determine offset
         if offset is None:
             if from_end:
                 offset = max(0, total - limit)
             else:
                 offset = 0
 
-        # Clamp
         offset = max(0, min(offset, total - 1))
         end = min(offset + limit, total)
 
         lines = all_lines[offset:end]
         output = "".join(lines)
 
-        # Check binary
         if self._is_binary(output):
             return {
                 "cmd_id": cmd_id,
@@ -666,7 +636,6 @@ class AsyncProcessExecutor:
             "pagination_remaining": self.max_pagination_calls - log.pagination_count,
         }
 
-        # Navigation hints
         if offset > 0:
             result["prev"] = f"read_log('{cmd_id}', offset={max(0, offset - limit)})"
         if end < total:

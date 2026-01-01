@@ -16,19 +16,17 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Custom E2B template with Bun + React + Vite + Shadcn pre-installed
 E2B_TEMPLATE = os.getenv("E2B_TEMPLATE", "react-vite-shadcn-bun")
 
-# E2B Configuration
-E2B_TIMEOUT = int(os.getenv("E2B_TIMEOUT", "900"))  # 15 minutes default
+E2B_TIMEOUT = int(os.getenv("E2B_TIMEOUT", "900"))
 
 
 @dataclass
 class UserSandbox:
     """Represents a user's active sandbox session."""
-    
+
     user_id: str
-    sandbox: object  # e2b Sandbox instance
+    sandbox: object
     sandbox_id: str = ""
     preview_url: Optional[str] = None
     dev_server_running: bool = False
@@ -75,25 +73,21 @@ class SandboxManager:
         - Workspace at /home/user/workspace
         """
         from e2b_code_interpreter import Sandbox
-        
-        # Destroy existing if any
+
         if user_id in self._sandboxes:
             self.destroy(user_id)
-        
-        # Create sandbox from pre-baked template (fast: ~3.7s)
+
         sandbox = Sandbox.create(
             template=E2B_TEMPLATE,
             timeout=E2B_TIMEOUT
         )
-        
+
         user_sandbox = UserSandbox(
             user_id=user_id,
             sandbox=sandbox,
             sandbox_id=sandbox.sandbox_id,
         )
-        
-        # No setup needed - template has everything pre-installed!
-        
+
         self._sandboxes[user_id] = user_sandbox
         return user_sandbox
     
@@ -107,8 +101,8 @@ class SandboxManager:
         try:
             user_sandbox.sandbox.kill()
         except Exception:
-            pass  # Best effort
-        
+            pass
+
         return True
     
     def destroy_all(self) -> int:

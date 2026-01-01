@@ -18,18 +18,12 @@ class RepoMind:
     def __init__(self, repo_path: str = ".", confirm_callback=None):
         self.repo_path = repo_path
 
-        # File system tools
         self.fs = FileSystemTools(repo_path)
         self.edit = CodeEditor(repo_path)
         self.search = FileSystemSearchTools(repo_path)
 
-        # Code analysis tools
-
-        # Bash executor (async) - stored but not included in default tools
-        # Use directly via: asyncio.run(client.bash.run_command(...))
         self.bash = AsyncProcessExecutor(repo_path)
 
-        # Git tools (optional - may not be a git repo)
         try:
             self.git = GitTools(repo_path)
         except ValueError:
@@ -39,18 +33,15 @@ class RepoMind:
         """
         Returns a list of tool callables for LLM binding.
         Each tool is a bound method with proper signature.
-        Note: bash.run_command is async and not included - use directly via asyncio.run()
         """
         tools = [
-            # File system
             self.fs.list_files,
             self.fs.read_file,
             self.fs.write_file,
             self.search.fuzzy_find_file,
-            self.search.glob_search,  # NEW
+            self.search.glob_search,
             self.search.grep_string,
             self.edit.apply_file_edit,
-            # Code analysis
         ]
 
         # Add git tools if available

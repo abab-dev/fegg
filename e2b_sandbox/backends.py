@@ -24,44 +24,43 @@ from dataclasses import dataclass
 class FileBackend(Protocol):
     """
     Protocol defining file/command operations.
-    
+
     Implementations must provide these methods.
-    No inheritance required - just matching signatures (duck typing).
     """
-    
+
     @property
     def root(self) -> str:
         """Workspace root path."""
         ...
-    
+
     def read_file(self, path: str) -> str:
         """Read file contents. Path is relative to root."""
         ...
-    
+
     def write_file(self, path: str, content: str) -> None:
         """Write content to file. Creates parent dirs if needed."""
         ...
-    
+
     def file_exists(self, path: str) -> bool:
         """Check if file exists."""
         ...
-    
+
     def list_dir(self, path: str = ".") -> list[str]:
         """List directory contents. Returns relative paths."""
         ...
-    
+
     def run_command(
-        self, 
-        command: str, 
+        self,
+        command: str,
         timeout: int = 30,
         cwd: Optional[str] = None
     ) -> "CommandResult":
         """Run shell command. Returns stdout/stderr/exit_code."""
         ...
-    
+
     def grep(
-        self, 
-        pattern: str, 
+        self,
+        pattern: str,
         path: str = ".",
         context_lines: int = 2
     ) -> str:
@@ -86,10 +85,6 @@ class CommandResult:
         return self.stdout + ("\n" + self.stderr if self.stderr else "")
 
 
-# =============================================================================
-# Local Backend - uses os/pathlib/subprocess
-# =============================================================================
-
 class LocalBackend:
     """File backend for local filesystem operations."""
     
@@ -110,13 +105,12 @@ class LocalBackend:
             full = Path(path)
         else:
             full = self._root / path
-        
-        # Security: ensure path is within root
+
         try:
             full.resolve().relative_to(self._root)
         except ValueError:
             raise ValueError(f"Path outside workspace: {path}")
-        
+
         return full.resolve()
     
     def read_file(self, path: str) -> str:
@@ -168,27 +162,22 @@ class LocalBackend:
             )
     
     def grep(
-        self, 
-        pattern: str, 
+        self,
+        pattern: str,
         path: str = ".",
         context_lines: int = 2
     ) -> str:
         """Search using grep (or rg if available)."""
         target = self._resolve(path)
-        
-        # Try ripgrep first, fall back to grep
+
         cmd = f'rg --color=never -n -C {context_lines} "{pattern}" "{target}" 2>/dev/null || grep -rn -C {context_lines} "{pattern}" "{target}"'
         result = self.run_command(cmd, timeout=15)
-        
-        if result.exit_code == 1:  # No matches
+
+        if result.exit_code == 1:
             return f"No matches found for '{pattern}'"
-        
+
         return result.stdout
 
-
-# =============================================================================
-# E2B Backend - uses sandbox.files/sandbox.commands
-# =============================================================================
 
 class E2BBackend:
     """File backend for E2B sandbox operations."""
@@ -234,8 +223,7 @@ class E2BBackend:
         cwd: Optional[str] = None
     ) -> CommandResult:
         work_dir = self._resolve(cwd) if cwd else self._root
-        
-        # Wrap command to run in correct directory
+
         full_cmd = f'cd "{work_dir}" && {command}'
         
         try:
@@ -253,16 +241,15 @@ class E2BBackend:
             )
     
     def grep(
-        self, 
-        pattern: str, 
+        self,
+        pattern: str,
         path: str = ".",
         context_lines: int = 2
     ) -> str:
         """Search using grep in sandbox."""
         full_path = self._resolve(path)
-        
-        # Use grep (sandbox may not have ripgrep)
+
         cmd = f'grep -rn -C {context_lines} "{pattern}" "{full_path}" 2>/dev/null || echo "No matches found"'
         result = self.run_command(cmd, timeout=15, cwd="/")
-        
+
         return result.stdout

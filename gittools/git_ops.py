@@ -30,7 +30,6 @@ class GitTools:
         if not self.root.exists():
             raise ValueError(f"Root path does not exist: {self.root}")
 
-        # Validate git repo
         git_dir = self.root / ".git"
         if not git_dir.exists():
             raise ValueError(f"Not a git repository: {self.root}")
@@ -184,7 +183,6 @@ class GitTools:
         Args:
             commit: Commit hash, branch name, or reference (default: HEAD).
         """
-        # Sanitize commit reference
         if not commit.replace("-", "").replace("_", "").replace("/", "").isalnum():
             if commit not in ["HEAD", "HEAD~1", "HEAD~2", "HEAD^"]:
                 return "Error: Invalid commit reference"
@@ -309,11 +307,8 @@ class GitTools:
 
     def uncommitted_changes(self) -> str:
         """Get a summary of all uncommitted changes (staged and unstaged)."""
-        # Staged files
         staged_result = self._run(["diff", "--cached", "--name-status"])
-        # Unstaged files
         unstaged_result = self._run(["diff", "--name-status"])
-        # Untracked files
         untracked_result = self._run(["ls-files", "--others", "--exclude-standard"])
 
         output = []

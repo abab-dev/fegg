@@ -7,7 +7,6 @@ from typing import List, Literal, Optional
 try:
     from rapidfuzz import process, fuzz
 except ImportError:
-    # Fallback if rapidfuzz is not installed
     import difflib
 
     class process:
@@ -89,7 +88,7 @@ class FileSystemSearchTools:
                 if file in self.default_ignore:
                     continue
                 full_path = Path(root) / file
-                file_list.append(str(full_path))  # Absolute path
+                file_list.append(str(full_path))
         return file_list
 
     def fuzzy_find_file(self, query: str) -> str:
@@ -126,7 +125,6 @@ class FileSystemSearchTools:
             path: Absolute directory to search in (default: workspace root).
         """
         try:
-            # Default to root if no path provided
             if path is None:
                 target_path = self.root
             else:
@@ -135,19 +133,15 @@ class FileSystemSearchTools:
             if not target_path.is_dir():
                 return f"Error: Not a directory: {target_path}"
 
-            # Construct full search pattern
             search_pattern = str(target_path / pattern)
 
-            # Use recursive=True if pattern contains **
             recursive = "**" in pattern
             matches = glob_module.glob(search_pattern, recursive=recursive)
 
-            # Filter and format - return ABSOLUTE paths
             abs_matches = []
             for m in matches:
                 p = Path(m)
                 if p.is_file():
-                    # Check ignores
                     if any(part in self.default_ignore for part in p.parts):
                         continue
                     abs_matches.append(str(p))
@@ -155,7 +149,6 @@ class FileSystemSearchTools:
             if not abs_matches:
                 return f"No files found matching '{pattern}' in {target_path}"
 
-            # Sort for stability
             abs_matches.sort()
 
             output = [f"Workspace: {self.root}", f"Pattern: {pattern}", "---"]
@@ -181,39 +174,24 @@ class FileSystemSearchTools:
     ) -> str:
         """
         Search for text patterns in files using ripgrep.
-        
+
         Args:
             query: Search pattern. Use | for alternatives (e.g., "auth|login|session").
-                   Special regex characters are treated literally unless you use |.
             path: File or directory to search (default: workspace root).
-                  Can be a single file OR a directory - both work!
             context_lines: Lines of context around each match (default: 2, max: 5).
-        
-        Returns matching lines with surrounding context.
-        - Automatically respects .gitignore
-        - Results capped at 50 matches
-        - Case-sensitive by default
-        
-        Examples:
-            grep_string("handleAuth")
-            grep_string("worker|queue|scaling", "/path/to/packages/cli")
-            grep_string("execute", "/path/to/file.ts", context_lines=0)
         """
         try:
-            # Default to root if no path provided
             if path is None:
                 target_path = self.root
             else:
                 target_path = self._validate_path(path)
-                
-            # Check if path exists
+
             if not target_path.exists():
                 return f"Error: Path does not exist: {target_path}"
-                
+
         except ValueError as e:
             return f"Error: {e}"
 
-        # Check if rg is available
         has_rg = subprocess.run(
             ["which", "rg"], capture_output=True
         ).returncode == 0
@@ -221,27 +199,22 @@ class FileSystemSearchTools:
         if not has_rg:
             return "Error: ripgrep (rg) is not installed. Please install it: https://github.com/BurntSushi/ripgrep"
 
-        # Clamp context lines to reasonable range
         context_lines = max(0, min(5, context_lines))
-        
-        # Build command
+
         command = [
             "rg",
             "--color=never",
             "--line-number",
             "--no-heading",
-            "--max-count=50",  # Cap results per file
+            "--max-count=50",
         ]
-        
-        # Add context if requested
+
         if context_lines > 0:
             command.extend([f"--context={context_lines}"])
-        
-        # Handle single file vs directory differently
+
         is_file = target_path.is_file()
-        
+
         if not is_file:
-            # Directory search - add ignore patterns
             command.extend([
                 "--hidden",
                 "-g", "!.git",
@@ -254,28 +227,24 @@ class FileSystemSearchTools:
                 "-g", "!*.lock",
                 "-g", "!*.lockb",
             ])
-        
-        # Add query and path
+
         command.extend([query, str(target_path)])
 
         try:
             result = subprocess.run(
-                command, 
-                capture_output=True, 
-                text=True, 
+                command,
+                capture_output=True,
+                text=True,
                 timeout=15
             )
 
             if result.returncode == 1:
-                # No matches (rg returns 1 for no matches)
                 return f"No matches found for '{query}' in {target_path}"
             if result.returncode == 2:
-                # Error
                 return f"Search error: {result.stderr.strip()}"
 
             lines = result.stdout.strip().split("\n")
-            
-            # Build output
+
             output_lines = [
                 f"Workspace: {self.root}",
                 f"Query: {query}",
@@ -283,7 +252,6 @@ class FileSystemSearchTools:
                 "---"
             ]
 
-            # Limit total output lines to prevent context window explosion
             max_lines = 150
             if len(lines) > max_lines:
                 output_lines.extend(lines[:max_lines])

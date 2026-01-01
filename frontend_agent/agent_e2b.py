@@ -24,20 +24,12 @@ from frontend_agent.prompts_e2b import get_e2b_agent_prompt
 
 load_dotenv()
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
 ZAI_MODEL_NAME = os.getenv("ZAI_MODEL_NAME", "GLM-4.5-air")
 ZAI_BASE_URL = os.getenv("ZAI_BASE_URL")
 ZAI_API_KEY = os.getenv("ZAI_API_KEY")
 
 MAX_ITERATIONS = 100
 
-
-# ============================================================================
-# LOGGING
-# ============================================================================
 
 class Logger:
     HEADER = "\033[95m"
@@ -75,17 +67,9 @@ class Logger:
         print(f"{Logger.CYAN}[System] {msg}{Logger.ENDC}", flush=True)
 
 
-# ============================================================================
-# TOOLS USING BACKEND
-# ============================================================================
-
 def create_tools(tools: FSTools, sandbox: UserSandbox):
     """Create LangChain tools from FSTools + sandbox."""
-    
-    # -------------------------------------------------------------------------
-    # File Tools (using FSTools which uses FileBackend)
-    # -------------------------------------------------------------------------
-    
+
     class ReadFileInput(BaseModel):
         path: str = Field(description="Path to file (relative to workspace)")
     
@@ -122,11 +106,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
     def fuzzy_find(query: str) -> str:
         """Fuzzy search for files by name."""
         return tools.fuzzy_find(query)
-    
-    # -------------------------------------------------------------------------
-    # Command Tools (using sandbox directly)
-    # -------------------------------------------------------------------------
-    
+
     class RunCommandInput(BaseModel):
         command: str = Field(description="Command to run (e.g., 'bun run build')")
         timeout: int = Field(default=60, description="Max seconds to wait")
@@ -154,14 +134,12 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         Start dev server in background. Waits for server to be ready.
         Returns preview URL when server is responding.
         """
-        # Kill any existing dev server first
         try:
             sandbox.sandbox.commands.run("pkill -f 'vite' 2>/dev/null; exit 0", timeout=5)
         except:
             pass
         time.sleep(1)
-        
-        # Start server in background using background=True
+
         try:
             sandbox.sandbox.commands.run(
                 command,
@@ -169,12 +147,10 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
                 cwd=sandbox.workspace_path
             )
         except Exception as e:
-            # background=True may raise but command still runs
             pass
-        
+
         sandbox.dev_server_running = True
-        
-        # Wait for server to be ready (poll with curl)
+
         code = "000"
         max_wait = 10
         for i in range(max_wait):
@@ -189,8 +165,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
                     break
             except:
                 pass
-        
-        # Get preview URL
+
         try:
             host = sandbox.sandbox.get_host(5173)
             url = f"https://{host}"
@@ -202,7 +177,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
                 return f"Dev server starting...\nPreview URL: {url}"
         except Exception as e:
             return f"Dev server started but couldn't get URL: {e}"
-    
+
     def get_preview_url() -> str:
         """Get the public preview URL for the running dev server."""
         if sandbox.preview_url:
@@ -214,31 +189,25 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             return url
         except:
             return "No preview URL available. Start dev server first."
-    
+
     def check_dev_server() -> str:
         """Check if dev server is running and get recent logs."""
-        # Check if responding
         result = sandbox.sandbox.commands.run(
             "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
             timeout=5
         )
         http_code = result.stdout.strip()
-        
-        # Get recent logs
+
         logs = sandbox.sandbox.commands.run(
             "tail -20 /tmp/dev-server.log 2>/dev/null || echo 'No logs'",
             timeout=5
         )
-        
+
         status = "✓ Running" if http_code == "200" else f"⚠ HTTP {http_code}"
         url = sandbox.preview_url or "Not available"
-        
+
         return f"Status: {status}\nPreview URL: {url}\n\nRecent logs:\n{logs.stdout}"
-    
-    # -------------------------------------------------------------------------
-    # Wrap all tools
-    # -------------------------------------------------------------------------
-    
+
     wrapped = [
         StructuredTool.from_function(read_file, args_schema=ReadFileInput),
         StructuredTool.from_function(write_file, args_schema=WriteFileInput),
@@ -250,13 +219,9 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         StructuredTool.from_function(get_preview_url),
         StructuredTool.from_function(check_dev_server),
     ]
-    
+
     return wrapped
 
-
-# ============================================================================
-# LLM
-# ============================================================================
 
 def get_llm():
     return ChatOpenAI(
@@ -267,13 +232,9 @@ def get_llm():
     )
 
 
-# ============================================================================
-# AGENT NODE
-# ============================================================================
-
 def create_agent_node(system_prompt: str, tools: list):
     """Create the main agent node."""
-    
+
     llm = get_llm()
     llm_bound = llm.bind_tools(tools)
     tool_map = {t.name: t for t in tools}
@@ -319,7 +280,7 @@ def create_agent_node(system_prompt: str, tools: list):
             results.append(ToolMessage(content=str(output), tool_call_id=tool_id))
         
         return {"messages": results}
-    
+
     def router(state: MessagesState) -> Literal["tools", END]:
         last = state["messages"][-1]
         if isinstance(last, AIMessage) and last.tool_calls:
@@ -329,27 +290,18 @@ def create_agent_node(system_prompt: str, tools: list):
     return agent_node, tool_executor, router
 
 
-# ============================================================================
-# BUILD GRAPH
-# ============================================================================
-
 def build_graph(user_sandbox: UserSandbox):
     """Build the LangGraph for frontend agent with E2B backend."""
-    
-    # Create backend and tools
+
     backend = E2BBackend(user_sandbox.sandbox, user_sandbox.workspace_path)
     fs_tools = FSTools(backend)
-    
-    # Create prompt
+
     system_prompt = get_e2b_agent_prompt(user_sandbox.workspace_path)
-    
-    # Create LangChain tools
+
     tools = create_tools(fs_tools, user_sandbox)
-    
-    # Create nodes
+
     agent_node, tool_executor, router = create_agent_node(system_prompt, tools)
-    
-    # Build graph
+
     builder = StateGraph(MessagesState)
     builder.add_node("agent", agent_node)
     builder.add_node("tools", tool_executor)
@@ -360,25 +312,18 @@ def build_graph(user_sandbox: UserSandbox):
     return builder.compile()
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
 def run_agent(user_id: str, query: str):
     """Run the frontend agent in E2B sandbox."""
-    
-    # Create sandbox
+
     Logger.log_system("Creating E2B sandbox...")
     manager = SandboxManager()
     user_sandbox = manager.create(user_id)
     Logger.log_system(f"Sandbox ready: {user_sandbox.sandbox_id}")
     Logger.log_system(f"Workspace: {user_sandbox.workspace_path}")
-    
+
     try:
-        # Build graph
         graph = build_graph(user_sandbox)
-        
-        # Run
+
         config = {"recursion_limit": MAX_ITERATIONS}
         
         print(f"\n{Logger.HEADER}{'=' * 50}{Logger.ENDC}", flush=True)
@@ -389,8 +334,7 @@ def run_agent(user_id: str, query: str):
             {"messages": [HumanMessage(content=query)]}, 
             config=config
         )
-        
-        # Get preview URL if available
+
         if user_sandbox.preview_url:
             print(f"\n{Logger.GREEN}Preview URL: {user_sandbox.preview_url}{Logger.ENDC}")
         
@@ -402,9 +346,8 @@ def run_agent(user_id: str, query: str):
         import traceback
         traceback.print_exc()
         return None, user_sandbox
-    
+
     finally:
-        # Note: Don't destroy sandbox here - caller may want to keep it
         pass
 
 

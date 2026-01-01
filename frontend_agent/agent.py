@@ -23,25 +23,14 @@ from frontend_agent.prompts import get_frontend_agent_prompt
 
 load_dotenv()
 
-# ============================================================================
-# CONFIGURATION
-# ============================================================================
-
-# Paths
 TEMPLATE_PATH = Path(__file__).parent / "template" / "react-vite-shadcn-ui"
 WORKSPACE_PATH = Path(__file__).parent / "workspace"
 
-# ZAI API (same as debug_agent_graph)
 ZAI_MODEL_NAME = os.getenv("ZAI_MODEL_NAME", "GLM-4.5-air")
 ZAI_BASE_URL = os.getenv("ZAI_BASE_URL")
 ZAI_API_KEY = os.getenv("ZAI_API_KEY")
 
 MAX_ITERATIONS = 100
-
-
-# ============================================================================
-# LOGGING
-# ============================================================================
 
 
 class Logger:
@@ -62,7 +51,6 @@ class Logger:
 
     @staticmethod
     def log_tool_call(tool_name: str, args: Dict):
-        # Truncate long args
         args_display = {}
         for k, v in args.items():
             if isinstance(v, str) and len(v) > 200:
@@ -81,11 +69,6 @@ class Logger:
     @staticmethod
     def log_system(msg: str):
         print(f"{Logger.CYAN}[System] {msg}{Logger.ENDC}", flush=True)
-
-
-# ============================================================================
-# WORKSPACE MANAGEMENT
-# ============================================================================
 
 
 def init_workspace(force: bool = False) -> Path:
@@ -107,29 +90,19 @@ def init_workspace(force: bool = False) -> Path:
     return WORKSPACE_PATH
 
 
-# ============================================================================
-# TOOLS SETUP
-# ============================================================================
-
-
 def create_tools(workspace: Path):
     """Create tools for the frontend agent."""
 
-    # Initialize RepoMind for the workspace
     rm = RepoMind(str(workspace))
 
-    # Bash executor for npm commands
     bash = AsyncProcessExecutor(str(workspace), timeout=120)
 
-    # Create a persistent event loop for all async operations
-    # This is stored as an attribute so it can be used across tool calls
     loop = asyncio.new_event_loop()
 
     def run_async(coro):
         """Run async code in the persistent event loop."""
         return loop.run_until_complete(coro)
 
-    # Tool 1: Blocking command for terminating commands (build, install, lint)
     class RunCommandInput(BaseModel):
         command: str = Field(description="The command to run (e.g., 'npm run build')")
         timeout: int = Field(default=60, description="Max seconds to wait (default 60)")
@@ -147,7 +120,6 @@ def create_tools(workspace: Path):
         except Exception as e:
             return {"error": str(e)}
 
-    # Tool 2: Non-blocking for dev servers
     class StartDevServerInput(BaseModel):
         command: str = Field(
             default="npm run dev",
@@ -167,7 +139,6 @@ def create_tools(workspace: Path):
         except Exception as e:
             return {"error": str(e)}
 
-    # Tool 3: Read output from running/completed command
     class ReadOutputInput(BaseModel):
         cmd_id: str = Field(
             description="Command ID from run_command or start_dev_server"
@@ -188,7 +159,6 @@ def create_tools(workspace: Path):
         except Exception as e:
             return {"error": str(e)}
 
-    # Tool 4: Stop a running command
     class StopCommandInput(BaseModel):
         cmd_id: str = Field(description="Command ID from start_dev_server")
 
@@ -204,7 +174,6 @@ def create_tools(workspace: Path):
         except Exception as e:
             return {"error": str(e)}
 
-    # Core tools
     tools = [
         rm.fs.read_file,
         rm.fs.write_file,
@@ -214,10 +183,8 @@ def create_tools(workspace: Path):
         rm.edit.apply_file_edit,
     ]
 
-    # Wrap all tools
     wrapped_tools = [StructuredTool.from_function(t) for t in tools]
 
-    # Add bash tools with explicit schemas for proper parameter handling
     wrapped_tools.append(
         StructuredTool.from_function(
             run_command,
@@ -243,12 +210,7 @@ def create_tools(workspace: Path):
         )
     )
 
-    return wrapped_tools, bash, loop  # Return bash and loop for cleanup
-
-
-# ============================================================================
-# LLM
-# ============================================================================
+    return wrapped_tools, bash, loop
 
 
 def get_llm():
@@ -256,13 +218,8 @@ def get_llm():
         model=ZAI_MODEL_NAME,
         base_url=ZAI_BASE_URL,
         api_key=ZAI_API_KEY,
-        temperature=0.1,  # Slightly creative for design
+        temperature=0.1,
     )
-
-
-# ============================================================================
-# AGENT NODE
-# ============================================================================
 
 
 def create_agent_node(system_prompt: str, tools: list):
@@ -296,7 +253,6 @@ def create_agent_node(system_prompt: str, tools: list):
             args = tool_call["args"]
             tool_id = tool_call["id"]
 
-            # Sanitize tool name (LLMs sometimes add parens)
             if name.endswith("()"):
                 name = name[:-2]
 
@@ -325,25 +281,16 @@ def create_agent_node(system_prompt: str, tools: list):
     return agent_node, tool_executor, router
 
 
-# ============================================================================
-# BUILD GRAPH
-# ============================================================================
-
-
 def build_graph(workspace: Path):
     """Build the LangGraph for frontend agent."""
 
-    # Get workspace root as string
     workspace_root = str(workspace.resolve())
 
-    # Create prompt and tools
     system_prompt = get_frontend_agent_prompt(workspace_root)
     tools, bash_executor, event_loop = create_tools(workspace)
 
-    # Create nodes
     agent_node, tool_executor, router = create_agent_node(system_prompt, tools)
 
-    # Build graph
     builder = StateGraph(MessagesState)
 
     builder.add_node("agent", agent_node)
@@ -356,21 +303,13 @@ def build_graph(workspace: Path):
     return builder.compile(), bash_executor, event_loop
 
 
-# ============================================================================
-# MAIN
-# ============================================================================
-
-
 def run_agent(query: str, reset_workspace: bool = False):
     """Run the frontend agent with a query."""
 
-    # Initialize workspace
     workspace = init_workspace(force=reset_workspace)
 
-    # Build graph
     graph, bash_executor, event_loop = build_graph(workspace)
 
-    # Run
     config = {"recursion_limit": MAX_ITERATIONS}
 
     print(f"\n{Logger.HEADER}{'=' * 50}{Logger.ENDC}", flush=True)
@@ -390,7 +329,6 @@ def run_agent(query: str, reset_workspace: bool = False):
         traceback.print_exc()
         return None
     finally:
-        # Cleanup: terminate any running background processes using the persistent loop
         try:
             cleanup_result = event_loop.run_until_complete(bash_executor.cleanup_all())
             if cleanup_result.get("terminated_count", 0) > 0:
@@ -398,9 +336,8 @@ def run_agent(query: str, reset_workspace: bool = False):
                     f"Cleaned up {cleanup_result['terminated_count']} background process(es)"
                 )
         except Exception:
-            pass  # Best effort cleanup
+            pass
         finally:
-            # Close the event loop
             try:
                 event_loop.close()
             except Exception:

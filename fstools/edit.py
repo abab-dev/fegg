@@ -62,7 +62,7 @@ class CodeEditor:
 
     # Matching strategies
     def _match_exact(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
-        """Strategy 1: Exact match."""
+        """Exact match."""
         start = 0
         while True:
             idx = content.find(search, start)
@@ -72,11 +72,10 @@ class CodeEditor:
             start = idx + 1
 
     def _match_line_trimmed(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
-        """Strategy 2: Ignore indentation differences."""
+        """Ignore indentation differences."""
         c_lines = content.splitlines(keepends=True)
         s_lines = search.splitlines(keepends=True)
 
-        # Remove trailing empty line from search if present
         if s_lines and s_lines[-1].strip() == "":
             s_lines.pop()
 
@@ -86,7 +85,6 @@ class CodeEditor:
 
         s_trimmed = [l.strip() for l in s_lines]
 
-        # Calculate character offsets for each line
         current_char_idx = 0
         line_offsets = []
         for line in c_lines:
@@ -94,7 +92,6 @@ class CodeEditor:
             current_char_idx += len(line)
         line_offsets.append(current_char_idx)
 
-        # Find matches
         for i in range(len(c_lines) - n_search + 1):
             match = True
             for j in range(n_search):
@@ -105,7 +102,7 @@ class CodeEditor:
                 yield line_offsets[i], line_offsets[i + n_search]
 
     def _match_block_anchor(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
-        """Strategy 3: Fuzzy match middle lines if start/end match."""
+        """Fuzzy match middle lines if start/end match."""
         c_lines = content.splitlines(keepends=True)
         s_lines = search.splitlines(keepends=True)
 
@@ -115,7 +112,6 @@ class CodeEditor:
         first_search = s_lines[0].strip()
         last_search = s_lines[-1].strip()
 
-        # Calculate character offsets
         current_char_idx = 0
         line_offsets = []
         for line in c_lines:
@@ -123,7 +119,6 @@ class CodeEditor:
             current_char_idx += len(line)
         line_offsets.append(current_char_idx)
 
-        # Find all possible matches (start and end lines)
         candidates = []
         for i in range(len(c_lines)):
             if c_lines[i].strip() == first_search:
@@ -133,7 +128,6 @@ class CodeEditor:
                         candidates.append((i, j))
                         break
 
-        # Score each candidate based on middle line similarity
         best_candidate = None
         max_score = 0.0
 
@@ -141,11 +135,9 @@ class CodeEditor:
             c_middle = c_lines[start_line + 1 : end_line]
             s_middle = s_lines[1:-1]
 
-            # Skip if length difference is too large
             if abs(len(c_middle) - len(s_middle)) > len(s_middle) * 0.5:
                 continue
 
-            # Calculate similarity score
             total_score = 0
             comparisons = min(len(c_middle), len(s_middle))
 
@@ -158,7 +150,6 @@ class CodeEditor:
                             c_middle[k].strip(), s_middle[k].strip()
                         )
                     except:
-                        # Fallback to simple ratio
                         dist = Levenshtein.normalized_similarity(
                             c_middle[k].strip(), s_middle[k].strip()
                         )
@@ -169,14 +160,13 @@ class CodeEditor:
                 max_score = score
                 best_candidate = (start_line, end_line)
 
-        # Accept best candidate if score is good enough
         threshold = 0.3 if len(candidates) > 1 else 0.0
         if best_candidate and max_score >= threshold:
             s_idx, e_idx = best_candidate
             yield line_offsets[s_idx], line_offsets[e_idx + 1]
 
     def _match_whitespace_normalized(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
-        """Strategy 4: Collapse all whitespace to single space for comparison."""
+        """Collapse all whitespace to single space for comparison."""
         def normalize(text: str) -> str:
             import re
             return re.sub(r'\s+', ' ', text).strip()
@@ -184,13 +174,11 @@ class CodeEditor:
         normalized_search = normalize(search)
         lines = content.splitlines(keepends=True)
 
-        # Single line match
         for i, line in enumerate(lines):
             if normalize(line) == normalized_search:
                 start = sum(len(lines[j]) for j in range(i))
                 yield start, start + len(line)
 
-        # Multi-line match
         search_lines = search.splitlines()
         if len(search_lines) > 1:
             for i in range(len(lines) - len(search_lines) + 1):
@@ -201,7 +189,7 @@ class CodeEditor:
                     yield start, end
 
     def _match_indentation_flexible(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
-        """Strategy 5: Match ignoring consistent indentation differences."""
+        """Match ignoring consistent indentation differences."""
         def remove_common_indent(text: str) -> str:
             lines = text.splitlines()
             non_empty = [l for l in lines if l.strip()]
@@ -232,7 +220,6 @@ class CodeEditor:
             new_code: New code to insert.
             replace_all: If True, replace all occurrences (default: False).
         """
-        # Validate path
         try:
             target = self._validate_path(path)
         except ValueError as e:
@@ -246,7 +233,6 @@ class CodeEditor:
         except Exception:
             return "Error: Could not read file (binary?)"
 
-        # Try each strategy in order (most strict first)
         strategies = [
             ("exact", self._match_exact),
             ("trimmed", self._match_line_trimmed),
@@ -270,7 +256,6 @@ class CodeEditor:
         if found_start == -1:
             return f"Error: Could not find matching code in {path}"
 
-        # Apply the edit
         new_content = content[:found_start] + new_code + content[found_end:]
 
         try:
@@ -278,7 +263,6 @@ class CodeEditor:
         except Exception as e:
             return f"Error saving file: {e}"
 
-        # Generate diff
         diff = difflib.unified_diff(
             content.splitlines(keepends=True),
             new_content.splitlines(keepends=True),

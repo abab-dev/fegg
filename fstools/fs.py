@@ -12,7 +12,6 @@ class FileSystemTools:
 
     def __init__(self, root_path: str = "."):
         self.root = Path(root_path).resolve()
-        # Common directories to ignore during listing
         self.ignore_patterns = {
             ".git",
             "node_modules",
@@ -64,7 +63,6 @@ class FileSystemTools:
             depth: How many levels deep to list (default: 1).
         """
         try:
-            # Default to root if no path provided
             if path is None:
                 target_dir = self.root
             else:
@@ -79,17 +77,13 @@ class FileSystemTools:
             start_level = len(target_dir.parts)
 
             for root, dirs, files in os.walk(target_dir):
-                # Calculate current depth
                 current_level = len(Path(root).parts)
                 if current_level - start_level >= depth:
-                    # Clear dirs to stop walking deeper
                     dirs[:] = []
                     continue
 
-                # Filter ignored directories
                 dirs[:] = [d for d in dirs if d not in self.ignore_patterns]
 
-                # Sort for consistent output
                 dirs.sort()
                 files.sort()
 
@@ -104,7 +98,7 @@ class FileSystemTools:
                     abs_path = root_path / f
                     output.append(f"FILE {abs_path}")
 
-            if len(output) == 3:  # Only header lines
+            if len(output) == 3:
                 return "Directory is empty."
 
             return "\n".join(output)
@@ -138,15 +132,12 @@ class FileSystemTools:
             if not target_file.is_file():
                 return f"Error: '{path}' is not a file."
 
-            # Handle the 'offset' vs 'start_line' confusion
-            # If offset is provided, it overrides start_line
             if offset is not None:
                 try:
                     start_line = int(offset)
                 except ValueError:
-                    pass  # Keep default start_line if offset is junk
+                    pass
 
-            # Ensure reasonable bounds
             start_line = max(1, start_line)
 
             with open(target_file, "r", encoding="utf-8", errors="replace") as f:
@@ -157,7 +148,6 @@ class FileSystemTools:
             if start_line > total_lines:
                 return f"Error: Start line {start_line} exceeds file length ({total_lines} lines)."
 
-            # Calculate slice indices (0-based)
             start_index = start_line - 1
             end_index = start_index + limit
 
@@ -169,7 +159,6 @@ class FileSystemTools:
 
             output.append("---")
 
-            # Format with line numbers
             for i, line in enumerate(selected_lines):
                 line_num = start_line + i
                 output.append(f"{line_num:4d} | {line.rstrip()}")
@@ -197,7 +186,6 @@ class FileSystemTools:
         try:
             target_file = self._validate_path(path)
 
-            # Check if overwriting
             overwrite_info = ""
             if target_file.exists():
                 try:
@@ -207,7 +195,6 @@ class FileSystemTools:
                 except Exception:
                     overwrite_info = " [OVERWRITTEN]"
 
-            # Create parent directories if they don't exist
             target_file.parent.mkdir(parents=True, exist_ok=True)
 
             with open(target_file, "w", encoding="utf-8") as f:

@@ -66,11 +66,7 @@ class FSTools:
     def root(self) -> str:
         """Workspace root path."""
         return self._backend.root
-    
-    # =========================================================================
-    # File Operations
-    # =========================================================================
-    
+
     def read_file(self, path: str) -> str:
         """
         Read file contents.
@@ -115,11 +111,7 @@ class FSTools:
     def file_exists(self, path: str) -> bool:
         """Check if file exists."""
         return self._backend.file_exists(path)
-    
-    # =========================================================================
-    # Search Operations
-    # =========================================================================
-    
+
     def grep(
         self,
         pattern: str,
@@ -143,34 +135,32 @@ class FSTools:
     def fuzzy_find(self, query: str) -> str:
         """
         Fuzzy search for files by name.
-        
+
         Args:
             query: Partial filename to search for.
         """
         try:
-            # Get all files recursively
             all_files = self._get_all_files()
-            
+
             if not all_files:
                 return f"No files found in workspace"
-            
-            # Fuzzy match
+
             results = process.extract(
                 query, all_files, scorer=fuzz.WRatio, limit=10, score_cutoff=40
             )
             
             if not results:
                 return f"No files matching '{query}'"
-            
+
             output = [f"Matches for '{query}':"]
             for path, score in results:
                 output.append(f"  {path} (score: {score:.0f})")
-            
+
             return "\n".join(output)
-            
+
         except Exception as e:
             return f"Search error: {e}"
-    
+
     def _get_all_files(self, path: str = ".") -> List[str]:
         """Recursively get all files, respecting ignore patterns."""
         result = []
@@ -192,14 +182,10 @@ class FSTools:
                         result.append(full_path)
             except:
                 pass
-        
+
         walk(path)
         return result
-    
-    # =========================================================================
-    # Command Execution
-    # =========================================================================
-    
+
     def run(self, command: str, timeout: int = 30) -> str:
         """
         Run shell command in workspace.
@@ -219,11 +205,10 @@ class FSTools:
     def run_background(self, command: str) -> str:
         """
         Run command in background (for dev servers etc).
-        
+
         Args:
             command: Shell command to run in background.
         """
-        # Append & to run in background
         bg_cmd = f"nohup {command} > /tmp/bg_output.log 2>&1 &"
         result = self._backend.run_command(bg_cmd, timeout=5)
         return f"Started in background: {command}"
