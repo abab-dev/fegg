@@ -17,6 +17,7 @@ export default defineConfig({
     host: "0.0.0.0", // Bind to all interfaces for E2B sandbox
     port: 5173,
     strictPort: true,
+    allowedHosts: true, // Allow all hosts (E2B sandbox URLs are dynamic)
   },
   resolve: {
     alias: {
