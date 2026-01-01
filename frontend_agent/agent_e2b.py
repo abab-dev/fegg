@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 from e2b_sandbox.sandbox import SandboxManager, UserSandbox
 from e2b_sandbox.backends import E2BBackend, FileBackend
 from fstools.backend_tools import FSTools
-from frontend_agent.prompts import get_frontend_agent_prompt
+from frontend_agent.prompts_e2b import get_e2b_agent_prompt
 
 load_dotenv()
 
@@ -341,7 +341,7 @@ def build_graph(user_sandbox: UserSandbox):
     fs_tools = FSTools(backend)
     
     # Create prompt
-    system_prompt = get_frontend_agent_prompt(user_sandbox.workspace_path)
+    system_prompt = get_e2b_agent_prompt(user_sandbox.workspace_path)
     
     # Create LangChain tools
     tools = create_tools(fs_tools, user_sandbox)
