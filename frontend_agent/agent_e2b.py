@@ -7,6 +7,7 @@ Uses FileBackend abstraction for seamless switching.
 
 import os
 import json
+import time
 from typing import Literal, Any, Dict, Optional
 from dotenv import load_dotenv
 
@@ -153,30 +154,41 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         Start dev server in background. Waits for server to be ready.
         Returns preview URL when server is responding.
         """
-        import time
-        
         # Kill any existing dev server first
-        sandbox.sandbox.commands.run("pkill -f 'vite' || true", timeout=5)
+        try:
+            sandbox.sandbox.commands.run("pkill -f 'vite' 2>/dev/null; exit 0", timeout=5)
+        except:
+            pass
         time.sleep(1)
         
-        # Start server in background with nohup
-        sandbox.sandbox.commands.run(
-            f"cd {sandbox.workspace_path} && nohup {command} > /tmp/dev-server.log 2>&1 &",
-            timeout=5
-        )
+        # Start server in background using background=True
+        try:
+            sandbox.sandbox.commands.run(
+                command,
+                background=True,
+                cwd=sandbox.workspace_path
+            )
+        except Exception as e:
+            # background=True may raise but command still runs
+            pass
+        
         sandbox.dev_server_running = True
         
         # Wait for server to be ready (poll with curl)
-        max_wait = 15
+        code = "000"
+        max_wait = 10
         for i in range(max_wait):
             time.sleep(1)
-            result = sandbox.sandbox.commands.run(
-                "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
-                timeout=5
-            )
-            code = result.stdout.strip()
-            if code == "200":
-                break
+            try:
+                result = sandbox.sandbox.commands.run(
+                    "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
+                    timeout=5
+                )
+                code = result.stdout.strip()
+                if code == "200":
+                    break
+            except:
+                pass
         
         # Get preview URL
         try:
@@ -187,8 +199,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             if code == "200":
                 return f"✓ Dev server running.\nPreview URL: {url}"
             else:
-                # Server may still be starting, return URL anyway
-                return f"Dev server starting (HTTP {code}).\nPreview URL: {url}\n(May take a few more seconds)"
+                return f"Dev server starting...\nPreview URL: {url}"
         except Exception as e:
             return f"Dev server started but couldn't get URL: {e}"
     
