@@ -1,0 +1,15 @@
+# This is a config for E2B sandbox template.
+# You can use template ID (j10c57f4umwn5ofmxra6) to create a sandbox:
+
+# Python SDK
+# from e2b import Sandbox, AsyncSandbox
+# sandbox = Sandbox.create("j10c57f4umwn5ofmxra6") # Sync sandbox
+# sandbox = await AsyncSandbox.create("j10c57f4umwn5ofmxra6") # Async sandbox
+
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create('j10c57f4umwn5ofmxra6')
+
+team_id = "d5a86ab3-c8f9-45dd-9929-2e789a1143db"
+dockerfile = "e2b.Dockerfile"
+template_id = "j10c57f4umwn5ofmxra6"
