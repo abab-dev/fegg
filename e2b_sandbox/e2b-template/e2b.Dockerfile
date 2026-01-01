@@ -1,27 +1,17 @@
 # E2B Custom Template: React + Vite + Shadcn
-# Pre-baked with all dependencies for instant startup
+# Using Bun for faster installs and runtime
 
-FROM node:24-bookworm
+FROM oven/bun:1-debian
 
-# Create user only if doesn't exist, add sudo for user
-RUN id -u user 2>/dev/null || useradd -m -s /bin/bash user
-RUN grep -q "user ALL=(ALL) NOPASSWD:ALL" /etc/sudoers || echo "user ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-
-# Create workspace directory and copy files as root first
+# Create workspace and copy template
 RUN mkdir -p /home/user/workspace
-COPY template/ /home/user/workspace/
 
-# Fix ownership AFTER copy
-RUN chown -R user:user /home/user
-
-# Switch to user
-USER user
-
-# Set working directory
 WORKDIR /home/user/workspace
 
-# Install npm dependencies (this gets baked into the template)
-RUN npm install
+COPY template/ /home/user/workspace/
+
+# Install dependencies with bun (much faster than npm)
+RUN bun install
 
 # Verify installation
-RUN node --version && npm --version && ls -la
+RUN bun --version && ls -la
