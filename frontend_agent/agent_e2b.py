@@ -150,21 +150,45 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
     
     def start_dev_server(command: str = "bun run dev") -> str:
         """
-        Start dev server in background. Returns preview URL.
+        Start dev server in background. Waits for server to be ready.
+        Returns preview URL when server is responding.
         """
-        # Run in background
+        import time
+        
+        # Kill any existing dev server first
+        sandbox.sandbox.commands.run("pkill -f 'vite' || true", timeout=5)
+        time.sleep(1)
+        
+        # Start server in background with nohup
         sandbox.sandbox.commands.run(
-            f"cd {sandbox.workspace_path} && {command} &",
+            f"cd {sandbox.workspace_path} && nohup {command} > /tmp/dev-server.log 2>&1 &",
             timeout=5
         )
         sandbox.dev_server_running = True
+        
+        # Wait for server to be ready (poll with curl)
+        max_wait = 15
+        for i in range(max_wait):
+            time.sleep(1)
+            result = sandbox.sandbox.commands.run(
+                "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
+                timeout=5
+            )
+            code = result.stdout.strip()
+            if code == "200":
+                break
         
         # Get preview URL
         try:
             host = sandbox.sandbox.get_host(5173)
             url = f"https://{host}"
             sandbox.preview_url = url
-            return f"Dev server started.\nPreview URL: {url}"
+            
+            if code == "200":
+                return f"✓ Dev server running.\nPreview URL: {url}"
+            else:
+                # Server may still be starting, return URL anyway
+                return f"Dev server starting (HTTP {code}).\nPreview URL: {url}\n(May take a few more seconds)"
         except Exception as e:
             return f"Dev server started but couldn't get URL: {e}"
     
@@ -180,6 +204,26 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         except:
             return "No preview URL available. Start dev server first."
     
+    def check_dev_server() -> str:
+        """Check if dev server is running and get recent logs."""
+        # Check if responding
+        result = sandbox.sandbox.commands.run(
+            "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
+            timeout=5
+        )
+        http_code = result.stdout.strip()
+        
+        # Get recent logs
+        logs = sandbox.sandbox.commands.run(
+            "tail -20 /tmp/dev-server.log 2>/dev/null || echo 'No logs'",
+            timeout=5
+        )
+        
+        status = "✓ Running" if http_code == "200" else f"⚠ HTTP {http_code}"
+        url = sandbox.preview_url or "Not available"
+        
+        return f"Status: {status}\nPreview URL: {url}\n\nRecent logs:\n{logs.stdout}"
+    
     # -------------------------------------------------------------------------
     # Wrap all tools
     # -------------------------------------------------------------------------
@@ -193,6 +237,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         StructuredTool.from_function(run_command, args_schema=RunCommandInput),
         StructuredTool.from_function(start_dev_server, args_schema=StartDevServerInput),
         StructuredTool.from_function(get_preview_url),
+        StructuredTool.from_function(check_dev_server),
     ]
     
     return wrapped
