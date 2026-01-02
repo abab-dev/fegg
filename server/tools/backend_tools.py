@@ -29,24 +29,24 @@ except ImportError:
 
 
 # Import FileBackend protocol - no tight coupling
-from server.sandbox.backends import FileBackend
+from sandbox.backends import FileBackend
 
 
 class FSTools:
     """
     File system tools using FileBackend abstraction.
-    
+
     Usage:
-        from server.sandbox.backends import LocalBackend, E2BBackend
-        
+        from sandbox.backends import LocalBackend, E2BBackend
+
         # Local
         backend = LocalBackend("/path/to/workspace")
         tools = FSTools(backend)
-        
+
         # E2B
         backend = E2BBackend(sandbox)
         tools = FSTools(backend)
-        
+
         # Same API for both
         tools.read_file("src/App.tsx")
         tools.write_file("src/App.tsx", content)

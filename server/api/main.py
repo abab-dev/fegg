@@ -3,10 +3,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.api.config import CORS_ORIGINS
-from server.api.database import init_db
-from server.api.routers import auth, sessions, agent
-from server.api.services.sandbox_manager import cleanup_all
+from .config import CORS_ORIGINS
+from .database import init_db
+from .routers import auth, sessions, agent
+from .services.sandbox_manager import cleanup_all
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

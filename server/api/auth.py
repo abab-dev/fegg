@@ -7,8 +7,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from server.api.config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_DAYS
-from server.api.database import get_db, User
+from .config import JWT_SECRET, JWT_ALGORITHM, JWT_EXPIRE_DAYS
+from .database import get_db, User
 
 security = HTTPBearer()
 

@@ -7,7 +7,7 @@ from sqlalchemy import Column, String, Text, DateTime, Integer, ForeignKey, crea
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy.orm import declarative_base, relationship
 
-from server.api.config import DATABASE_URL
+from .config import DATABASE_URL
 
 # For SQLite, use the api directory
 DB_PATH = Path(__file__).parent / "fegg.db"

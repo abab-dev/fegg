@@ -4,14 +4,7 @@ Sandbox Manager - Thin wrapper around e2b_sandbox.sandbox.SandboxManager
 This module re-exports from the existing e2b_sandbox module
 to maintain API compatibility with the routers.
 """
-import sys
-from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
-from server.api.services.agent_runner import (
+from .agent_runner import (
     get_sandbox_manager,
     create_sandbox_for_session,
     get_user_sandbox,

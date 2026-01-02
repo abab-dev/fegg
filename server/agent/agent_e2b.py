@@ -17,10 +17,10 @@ from langchain_core.tools import StructuredTool
 from langgraph.graph import StateGraph, START, END, MessagesState
 from pydantic import BaseModel, Field
 
-from server.sandbox.sandbox import SandboxManager, UserSandbox
-from server.sandbox.backends import E2BBackend, FileBackend
-from server.tools.backend_tools import FSTools
-from server.agent.prompts import get_e2b_agent_prompt
+from sandbox.sandbox import SandboxManager, UserSandbox
+from sandbox.backends import E2BBackend, FileBackend
+from tools.backend_tools import FSTools
+from .prompts import get_e2b_agent_prompt
 
 load_dotenv()
 

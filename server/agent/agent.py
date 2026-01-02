@@ -17,9 +17,9 @@ from langchain_core.tools import StructuredTool
 from langgraph.graph import StateGraph, START, END, MessagesState
 from pydantic import BaseModel, Field
 
-from server.tools.client import RepoMind
+from tools.client import RepoMind
 from bashtools import AsyncProcessExecutor
-from server.agent.prompts import get_frontend_agent_prompt
+from .prompts import get_frontend_agent_prompt
 
 load_dotenv()
 

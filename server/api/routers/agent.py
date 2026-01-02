@@ -6,11 +6,11 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from server.api.database import get_db, Session, Message, async_session
-from server.api.models import MessageCreate, MessageResponse
-from server.api.auth import get_current_user
-from server.api.services.agent_runner import stream_agent_events
-from server.api.services.sandbox_manager import create_sandbox
+from ..database import get_db, Session, Message, async_session
+from ..models import MessageCreate, MessageResponse
+from ..auth import get_current_user
+from ..services.agent_runner import stream_agent_events
+from ..services.sandbox_manager import create_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
 
@@ -119,11 +119,19 @@ async def stream_events(
                     return
             
             # Stream agent events
-            async for event in stream_agent_events(user_id, message):
+            async for event in stream_agent_events(user_id, session_id, message):
                 # Accumulate user_message content for saving
                 if event["type"] == "user_message":
                     assistant_content += event.get("content", "")
-                
+
+                # Capture preview URL from preview_ready or done event
+                if event["type"] == "preview_ready":
+                    preview_url = event.get("url")
+                elif event["type"] == "done":
+                    url = event.get("preview_url")
+                    if url:
+                        preview_url = url
+
                 yield f"data: {json.dumps(event)}\n\n"
             
             # Save assistant message to DB using new session
@@ -135,14 +143,16 @@ async def stream_events(
                         content=assistant_content
                     )
                     db2.add(msg)
-                
+
                 # Mark session as ready and update preview URL if set
                 result = await db2.execute(select(Session).where(Session.id == session_id))
                 session = result.scalar_one_or_none()
                 if session:
                     session.status = "ready"
                     session.last_activity = datetime.utcnow()
-                
+                    if preview_url:
+                        session.preview_url = preview_url
+
                 await db2.commit()
             
         except Exception as e:
