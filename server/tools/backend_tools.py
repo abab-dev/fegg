@@ -2,9 +2,10 @@
 File System Tools using FileBackend abstraction.
 
 Works identically on local filesystem or E2B sandbox.
+Includes file caching for efficiency (write-through cache).
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 try:
     from rapidfuzz import process, fuzz
@@ -32,9 +33,65 @@ except ImportError:
 from sandbox.backends import FileBackend
 
 
+class FileCache:
+    """
+    Simple write-through cache for file contents.
+    
+    - On read: returns cached content if available, otherwise reads from backend and caches.
+    - On write: writes to backend AND updates cache.
+    - Bounded LRU-style eviction to prevent memory bloat.
+    """
+    
+    def __init__(self, max_entries: int = 50):
+        self._cache: Dict[str, str] = {}
+        self._access_order: List[str] = []  # For LRU tracking
+        self._max_entries = max_entries
+    
+    def get(self, path: str) -> Optional[str]:
+        """Get cached content, returns None if not cached."""
+        if path in self._cache:
+            # Update access order for LRU
+            if path in self._access_order:
+                self._access_order.remove(path)
+            self._access_order.append(path)
+            return self._cache[path]
+        return None
+    
+    def set(self, path: str, content: str) -> None:
+        """Cache file content."""
+        # Evict oldest entries if at capacity
+        while len(self._cache) >= self._max_entries and self._access_order:
+            oldest = self._access_order.pop(0)
+            self._cache.pop(oldest, None)
+        
+        self._cache[path] = content
+        if path in self._access_order:
+            self._access_order.remove(path)
+        self._access_order.append(path)
+    
+    def invalidate(self, path: str) -> None:
+        """Remove a file from cache."""
+        self._cache.pop(path, None)
+        if path in self._access_order:
+            self._access_order.remove(path)
+    
+    def clear(self) -> None:
+        """Clear entire cache."""
+        self._cache.clear()
+        self._access_order.clear()
+    
+    def stats(self) -> Dict:
+        """Return cache statistics."""
+        return {
+            "entries": len(self._cache),
+            "max_entries": self._max_entries,
+            "cached_paths": list(self._cache.keys())
+        }
+
+
 class FSTools:
     """
-    File system tools using FileBackend abstraction.
+    File system tools using FileBackend abstraction with caching.
 
     Usage:
         from sandbox.backends import LocalBackend, E2BBackend
@@ -47,10 +104,10 @@ class FSTools:
         backend = E2BBackend(sandbox)
         tools = FSTools(backend)
 
-        # Same API for both
-        tools.read_file("src/App.tsx")
-        tools.write_file("src/App.tsx", content)
-        tools.grep("useState", "src/")
+        # Same API for both - with automatic caching
+        tools.read_file("src/App.tsx")  # Reads from backend, caches
+        tools.read_file("src/App.tsx")  # Returns from cache (fast!)
+        tools.write_file("src/App.tsx", content)  # Writes + updates cache
     """
     
     DEFAULT_IGNORE = {
@@ -59,38 +116,71 @@ class FSTools:
         "package-lock.json", "yarn.lock", "bun.lockb", "bun.lock"
     }
     
-    def __init__(self, backend: FileBackend):
+    def __init__(self, backend: FileBackend, cache: Optional[FileCache] = None):
         self._backend = backend
+        self._cache = cache or FileCache()
     
     @property
     def root(self) -> str:
         """Workspace root path."""
         return self._backend.root
+    
+    @property
+    def cache(self) -> FileCache:
+        """Access the file cache."""
+        return self._cache
+
+    def _normalize_path(self, path: str) -> str:
+        """Normalize path for consistent cache keys."""
+        # Remove leading ./ and trailing /
+        path = path.lstrip("./").rstrip("/")
+        return path
 
     def read_file(self, path: str) -> str:
         """
-        Read file contents.
+        Read file contents with caching.
         
         Args:
             path: Relative or absolute path to file.
+        
+        Returns cached content if available, otherwise reads from backend.
         """
+        norm_path = self._normalize_path(path)
+        
+        # Check cache first
+        cached = self._cache.get(norm_path)
+        if cached is not None:
+            return cached
+        
+        # Read from backend
         try:
-            return self._backend.read_file(path)
+            content = self._backend.read_file(path)
+            # Cache the content
+            self._cache.set(norm_path, content)
+            return content
         except Exception as e:
             return f"Error reading file: {e}"
     
     def write_file(self, path: str, content: str) -> str:
         """
-        Write content to file. Creates parent directories if needed.
+        Write content to file with cache update (write-through).
         
         Args:
             path: Relative or absolute path.
             content: File content to write.
+        
+        Writes to backend AND updates cache atomically.
         """
+        norm_path = self._normalize_path(path)
+        
         try:
             self._backend.write_file(path, content)
+            # Update cache with new content
+            self._cache.set(norm_path, content)
             return f"✓ Written to {path}"
         except Exception as e:
+            # Invalidate cache on error to ensure consistency
+            self._cache.invalidate(norm_path)
             return f"Error writing file: {e}"
     
     def list_dir(self, path: str = ".") -> str:

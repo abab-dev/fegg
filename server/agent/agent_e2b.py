@@ -306,11 +306,20 @@ def create_agent_node(system_prompt: str, tools: list):
     return agent_node, tool_executor, router
 
 
-def build_graph(user_sandbox: UserSandbox):
-    """Build the LangGraph for frontend agent with E2B backend."""
-
+def build_graph(user_sandbox: UserSandbox, file_cache=None):
+    """Build the LangGraph for frontend agent with E2B backend.
+    
+    Args:
+        user_sandbox: The E2B sandbox instance.
+        file_cache: Optional FileCache for caching file contents across invocations.
+    """
+    from tools.backend_tools import FileCache
+    
     backend = E2BBackend(user_sandbox.sandbox, user_sandbox.workspace_path)
-    fs_tools = FSTools(backend)
+    
+    # Use provided cache or create new one
+    cache = file_cache or FileCache(max_entries=50)
+    fs_tools = FSTools(backend, cache=cache)
 
     system_prompt = get_e2b_agent_prompt(user_sandbox.workspace_path)
 

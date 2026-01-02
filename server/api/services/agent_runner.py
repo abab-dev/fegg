@@ -4,9 +4,11 @@ Agent Runner - Wraps existing frontend_agent with streaming support.
 Reuses:
 - e2b_sandbox.sandbox.SandboxManager for sandbox lifecycle
 - frontend_agent.agent_e2b for agent logic
+
+Includes session-level file caching for efficiency.
 """
 
-from typing import AsyncGenerator, Dict, Any
+from typing import AsyncGenerator, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -15,6 +17,7 @@ from sqlalchemy import select
 # When running from server/, these are top-level packages
 from sandbox.sandbox import SandboxManager, UserSandbox
 from agent.agent_e2b import build_graph
+from tools.backend_tools import FileCache
 
 # api package modules (use relative import)
 from ..database import async_session, Message
@@ -25,10 +28,25 @@ MAX_ITERATIONS = 100
 # Singleton sandbox manager
 _sandbox_manager = SandboxManager()
 
+# Session-level file caches: {session_id: FileCache}
+_session_caches: Dict[str, FileCache] = {}
+
 
 def get_sandbox_manager() -> SandboxManager:
     """Get the singleton sandbox manager."""
     return _sandbox_manager
+
+
+def get_session_cache(session_id: str) -> FileCache:
+    """Get or create a file cache for a session."""
+    if session_id not in _session_caches:
+        _session_caches[session_id] = FileCache(max_entries=50)
+    return _session_caches[session_id]
+
+
+def clear_session_cache(session_id: str) -> None:
+    """Clear the cache for a session (e.g., on session termination)."""
+    _session_caches.pop(session_id, None)
 
 
 async def create_sandbox_for_session(session_id: str, user_id: str) -> tuple[str, str]:
@@ -71,6 +89,7 @@ async def stream_agent_events(
 
     Uses LangGraph astream_events for real-time streaming.
     Loads conversation history to support iterative refinement.
+    Uses session-level file caching for efficiency.
 
     Event types:
     - tool_start: When a tool is being called (except show_user_message)
@@ -83,8 +102,11 @@ async def stream_agent_events(
     user_sandbox = await get_user_sandbox(user_id)
     config = {"recursion_limit": MAX_ITERATIONS}
 
-    # Build graph using existing function
-    graph = build_graph(user_sandbox)
+    # Get session-level file cache for efficiency
+    file_cache = get_session_cache(session_id)
+
+    # Build graph using existing function, passing the cache
+    graph = build_graph(user_sandbox, file_cache=file_cache)
 
     # Load conversation history from database
     messages = []
