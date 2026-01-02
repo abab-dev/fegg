@@ -9,24 +9,14 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
-    Menu, Plus, Layout,
-    LogOut, MessageSquare, ExternalLink, RefreshCw,
-    Loader2, Check, Terminal, Rocket,
-    ArrowUp, Sparkles, Wand2
+    Menu, Plus, ExternalLink, RefreshCw,
+    Loader2, Rocket, ArrowUp, Wand2
 } from "lucide-react"
 import { toast } from "sonner"
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
-// Activity item type
-interface ActivityItem {
-    id: string
-    type: "status" | "tool" | "preview" | "error"
-    title: string
-    status: "running" | "done" | "error"
-    detail?: string
-}
 
 export function Dashboard() {
     const { user, logout, token } = useAuthStore()
@@ -110,7 +100,6 @@ export function Dashboard() {
 
             chatStore.setStreaming(true)
             let hasAssistantMessage = false
-            const toolActivities: Record<string, string> = {}
 
             while (true) {
                 const { done, value } = await reader.read()
@@ -124,71 +113,48 @@ export function Dashboard() {
                         try {
                             const data = JSON.parse(line.slice(6))
 
-                            // Ensure assistant message exists
-                            if (!hasAssistantMessage && (data.type !== 'done')) {
+                            // Ensure assistant message exists for tool/content events
+                            if (!hasAssistantMessage && data.type !== 'done' && data.type !== 'error') {
                                 chatStore.addMessage({ role: "assistant", content: "", steps: [] })
                                 hasAssistantMessage = true
                             }
 
                             switch (data.type) {
-                                case "status":
                                 case "tool_start":
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg.role !== 'assistant') return { messages: msgs }
-
-                                        const id = `${Date.now()}-${Math.random()}`
-
-                                        // Cleaner titles for Lovable style
-                                        let title = data.message || data.tool
-                                        if (data.type === 'tool_start') {
-                                            const toolName = data.tool.toLowerCase()
-                                            if (toolName.includes("write")) title = "Edited file"
-                                            else if (toolName.includes("read")) title = "Read file"
-                                            else if (toolName.includes("list")) title = "Checked folder"
-                                            else title = data.tool.replace(/_/g, " ")
-                                        }
-
-                                        const newStep: any = {
-                                            id,
-                                            type: data.type === 'status' ? 'status' : 'tool',
-                                            title: title,
-                                            status: data.type === 'status' && data.message.includes("ready") ? "done" : "running"
-                                        }
-
-                                        if (data.type === 'tool_start') {
-                                            toolActivities[data.tool] = id
-                                        }
-
-                                        lastMsg.steps = [...(lastMsg.steps || []), newStep]
-                                        return { messages: msgs }
-                                    })
+                                    // Backend sends step object
+                                    if (data.step) {
+                                        useChatStore.setState(state => {
+                                            const msgs = [...state.messages]
+                                            const lastMsg = msgs[msgs.length - 1]
+                                            if (lastMsg?.role === 'assistant') {
+                                                lastMsg.steps = [...(lastMsg.steps || []), data.step]
+                                            }
+                                            return { messages: msgs }
+                                        })
+                                    }
                                     break
 
                                 case "tool_end":
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (!lastMsg.steps) return { messages: msgs }
-
-                                        const stepId = toolActivities[data.tool]
-                                        if (stepId) {
-                                            lastMsg.steps = lastMsg.steps.map(s =>
-                                                s.id === stepId
-                                                    ? { ...s, status: "done", detail: data.result?.slice(0, 30) }
-                                                    : s
-                                            )
-                                        }
-                                        return { messages: msgs }
-                                    })
+                                    // Update step status to done
+                                    if (data.step_id) {
+                                        useChatStore.setState(state => {
+                                            const msgs = [...state.messages]
+                                            const lastMsg = msgs[msgs.length - 1]
+                                            if (lastMsg?.steps) {
+                                                lastMsg.steps = lastMsg.steps.map(s =>
+                                                    s.id === data.step_id ? { ...s, status: "done" } : s
+                                                )
+                                            }
+                                            return { messages: msgs }
+                                        })
+                                    }
                                     break
 
                                 case "user_message":
                                     useChatStore.setState(state => {
                                         const msgs = [...state.messages]
                                         const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg.role === 'assistant') {
+                                        if (lastMsg?.role === 'assistant') {
                                             lastMsg.content += data.content
                                         }
                                         return { messages: msgs }
@@ -197,7 +163,6 @@ export function Dashboard() {
 
                                 case "preview_ready":
                                     chatStore.setPreviewUrl(data.url)
-                                    // Update persistence
                                     chatStore.setSessions(
                                         chatStore.sessions.map(s =>
                                             s.id === chatStore.currentSessionId
@@ -205,38 +170,21 @@ export function Dashboard() {
                                                 : s
                                         )
                                     )
-                                    // Add preview ready step
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg?.role === 'assistant') {
-                                            lastMsg.steps = [...(lastMsg.steps || []), {
-                                                id: `p-${Date.now()}`,
-                                                type: 'preview',
-                                                title: 'Preview Ready',
-                                                status: 'done'
-                                            }]
-                                        }
-                                        return { messages: msgs }
-                                    })
+                                    // Backend sends step with URL
+                                    if (data.step) {
+                                        useChatStore.setState(state => {
+                                            const msgs = [...state.messages]
+                                            const lastMsg = msgs[msgs.length - 1]
+                                            if (lastMsg?.role === 'assistant') {
+                                                lastMsg.steps = [...(lastMsg.steps || []), data.step]
+                                            }
+                                            return { messages: msgs }
+                                        })
+                                    }
                                     break
 
                                 case "error":
                                     toast.error(data.message)
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg?.role === 'assistant') {
-                                            lastMsg.steps = [...(lastMsg.steps || []), {
-                                                id: `e-${Date.now()}`,
-                                                type: 'error',
-                                                title: "Error occurred",
-                                                detail: data.message,
-                                                status: 'error'
-                                            }]
-                                        }
-                                        return { messages: msgs }
-                                    })
                                     break
 
                                 case "done":
@@ -245,7 +193,7 @@ export function Dashboard() {
                                     break
                             }
                         } catch (e) {
-                            // Ignore
+                            // Ignore parse errors
                         }
                     }
                 }
@@ -393,35 +341,44 @@ export function Dashboard() {
                                                 </div>
                                             )}
 
-                                            {/* Persistent Steps (Lovable style flat list) */}
+                                            {/* Persistent Steps - Tool boxes and Preview URL */}
                                             {msg.steps && msg.steps.length > 0 && (
-                                                <div className="mt-3 flex flex-col gap-1.5">
-                                                    {msg.steps.map((step) => (
-                                                        <div key={step.id} className="flex items-center gap-2.5 text-xs text-zinc-500 font-mono">
-                                                            <div className="w-3.5 flex justify-center">
+                                                <div className="mt-4 flex flex-col gap-2">
+                                                    {/* Tool steps as compact inline badges */}
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {msg.steps.filter(s => s.type === 'tool').map((step) => (
+                                                            <div
+                                                                key={step.id}
+                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800/60 border border-zinc-700/50 text-xs"
+                                                            >
                                                                 {step.status === "running" ? (
                                                                     <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
-                                                                ) : step.type === 'preview' ? (
-                                                                    <Check className="h-3 w-3 text-green-500" />
-                                                                ) : step.type === 'error' ? (
-                                                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
                                                                 ) : (
-                                                                    <div className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
                                                                 )}
+                                                                <span className="text-zinc-400 font-medium">{step.title}</span>
                                                             </div>
-                                                            <div className="flex items-center gap-2">
-                                                                <span className={cn(
-                                                                    step.status === "running" ? "text-zinc-300" : "text-zinc-500"
-                                                                )}>
-                                                                    {step.title}
-                                                                </span>
-                                                                {step.detail && (
-                                                                    <span className="opacity-40 truncate max-w-[150px]">
-                                                                        {step.detail}
-                                                                    </span>
-                                                                )}
+                                                        ))}
+                                                    </div>
+
+                                                    {/* Preview URL as clickable box */}
+                                                    {msg.steps.filter(s => s.type === 'preview' && s.url).map((step) => (
+                                                        <a
+                                                            key={step.id}
+                                                            href={step.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="group flex items-center gap-3 px-4 py-3 rounded-lg bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 hover:border-emerald-500/40 transition-all cursor-pointer"
+                                                        >
+                                                            <div className="h-8 w-8 rounded-md bg-emerald-500/20 flex items-center justify-center">
+                                                                <Rocket className="h-4 w-4 text-emerald-400" />
                                                             </div>
-                                                        </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="text-sm font-medium text-emerald-400">Preview Ready</div>
+                                                                <div className="text-xs text-zinc-500 truncate">{step.url}</div>
+                                                            </div>
+                                                            <ExternalLink className="h-4 w-4 text-zinc-500 group-hover:text-emerald-400 transition-colors" />
+                                                        </a>
                                                     ))}
                                                 </div>
                                             )}
@@ -530,7 +487,7 @@ export function Dashboard() {
                                     </>
                                 ) : (
                                     <div className="text-center opacity-40">
-                                        <Sparkles className="h-12 w-12 mx-auto mb-4 text-zinc-600" />
+                                        <Rocket className="h-12 w-12 mx-auto mb-4 text-zinc-600" />
                                         <p className="text-sm">Preview will appear here</p>
                                     </div>
                                 )}

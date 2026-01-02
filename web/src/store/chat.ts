@@ -14,6 +14,7 @@ export interface Step {
     title: string
     status: "running" | "done" | "error"
     detail?: string
+    url?: string  // For preview steps
 }
 
 export interface Session {

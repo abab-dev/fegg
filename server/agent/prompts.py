@@ -302,6 +302,22 @@ You can MODIFY `src/styles/globals.css` to customize colors, but you know its cu
 | `grep_search` | `grep_search(pattern="useState", path="src")` | Search text in files |
 | `fuzzy_find` | `fuzzy_find(query="button")` | Find files by name |
 
+### Search Tools (USE THESE!)
+
+**grep_search** - Search for patterns in code. Use when:
+- User asks to "find" or "locate" something
+- User mentions a function/variable name and you need to locate it
+- You need to understand how something is used across files
+- You want to find all usages of a component/hook
+- Example: `grep_search(pattern="handleSubmit", path="src")` to find all form handlers
+
+**fuzzy_find** - Find files by partial name. Use when:
+- User mentions a file but you don't know exact location
+- You need to discover what files exist matching a pattern
+- Example: `fuzzy_find(query="auth")` to find authentication-related files
+
+These are FASTER than reading multiple files. Use them liberally!
+
 ### Command Operations
 | Tool | Usage | Description |
 |------|-------|-------------|

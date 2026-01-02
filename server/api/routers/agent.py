@@ -17,6 +17,10 @@ router = APIRouter(prefix="/sessions", tags=["agent"])
 # In-memory pending messages (session_id -> (user_id, message content))
 _pending_messages: dict[str, tuple[str, str]] = {}
 
+# Tools to show in the UI (file-related only)
+VISIBLE_TOOLS = {"read_file", "write_file", "list_files", "grep_search", "fuzzy_find"}
+
+
 @router.post("/{session_id}/message")
 async def send_message(
     session_id: str,
@@ -92,12 +96,12 @@ async def stream_events(
     async def generate():
         assistant_content = ""
         preview_url = None
+        collected_steps = []  # Collect steps for persistence
+        step_counter = 0
         
         try:
-            # If sandbox doesn't exist, create it now with status events
+            # If sandbox doesn't exist, create it now (silently - no status events)
             if needs_sandbox:
-                yield f"data: {json.dumps({'type': 'status', 'message': 'Setting up environment...'})}\n\n"
-                
                 try:
                     sandbox_id, preview_url = await create_sandbox(session_id, user_id)
                     
@@ -110,8 +114,6 @@ async def stream_events(
                             session.preview_url = preview_url
                         await db2.commit()
                     
-                    yield f"data: {json.dumps({'type': 'status', 'message': 'Environment ready'})}\n\n"
-                    
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -119,15 +121,86 @@ async def stream_events(
             
             # Stream agent events
             preview_emitted = False
+            tool_step_map = {}  # Track tool call IDs for status updates
+            
             async for event in stream_agent_events(user_id, session_id, message):
                 # Accumulate user_message content for saving
                 if event["type"] == "user_message":
                     assistant_content += event.get("content", "")
+                    yield f"data: {json.dumps(event)}\n\n"
+                
+                elif event["type"] == "tool_start":
+                    tool_name = event.get("tool", "")
+                    
+                    # Only show visible tools (read/write file)
+                    if tool_name in VISIBLE_TOOLS:
+                        step_counter += 1
+                        step_id = f"step-{step_counter}"
+                        
+                        # Create friendly title
+                        args = event.get("args", {})
+                        path = args.get("path", "")
+                        filename = path.split("/")[-1] if path else ""
+                        
+                        if tool_name == "write_file":
+                            title = f"Edited {filename}" if filename else "Edited file"
+                        elif tool_name == "read_file":
+                            title = f"Read {filename}" if filename else "Read file"
+                        elif tool_name == "list_files":
+                            title = f"Checked {path}" if path else "Checked folder"
+                        elif tool_name == "grep_search":
+                            pattern = args.get("pattern", "")
+                            title = f"Searched '{pattern[:20]}{'...' if len(pattern) > 20 else ''}'"
+                        elif tool_name == "fuzzy_find":
+                            query = args.get("query", "")
+                            title = f"Finding '{query}'"
+                        else:
+                            title = tool_name.replace("_", " ").title()
+                        
+                        step = {
+                            "id": step_id,
+                            "type": "tool",
+                            "title": title,
+                            "status": "running"
+                        }
+                        collected_steps.append(step)
+                        tool_step_map[tool_name] = step_id
+                        
+                        yield f"data: {json.dumps({'type': 'tool_start', 'tool': tool_name, 'step': step})}\n\n"
+                
+                elif event["type"] == "tool_end":
+                    tool_name = event.get("tool", "")
+                    
+                    # Only emit for visible tools
+                    if tool_name in VISIBLE_TOOLS:
+                        step_id = tool_step_map.get(tool_name)
+                        if step_id:
+                            # Update step status
+                            for step in collected_steps:
+                                if step["id"] == step_id:
+                                    step["status"] = "done"
+                                    break
+                        
+                        yield f"data: {json.dumps({'type': 'tool_end', 'tool': tool_name, 'step_id': step_id})}\n\n"
 
                 # Capture preview URL from preview_ready or done event
-                if event["type"] == "preview_ready":
+                elif event["type"] == "preview_ready":
                     preview_url = event.get("url")
                     preview_emitted = True
+                    
+                    # Add preview step
+                    step_counter += 1
+                    preview_step = {
+                        "id": f"step-{step_counter}",
+                        "type": "preview",
+                        "title": "Preview Ready",
+                        "url": preview_url,
+                        "status": "done"
+                    }
+                    collected_steps.append(preview_step)
+                    
+                    yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url, 'step': preview_step})}\n\n"
+                
                 elif event["type"] == "done":
                     url = event.get("preview_url")
                     if url:
@@ -135,18 +208,31 @@ async def stream_events(
                     
                     # Ensure preview is sent before done if we have it
                     if not preview_emitted and preview_url:
-                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
+                        step_counter += 1
+                        preview_step = {
+                            "id": f"step-{step_counter}",
+                            "type": "preview",
+                            "title": "Preview Ready",
+                            "url": preview_url,
+                            "status": "done"
+                        }
+                        collected_steps.append(preview_step)
+                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url, 'step': preview_step})}\n\n"
                         preview_emitted = True
 
-                yield f"data: {json.dumps(event)}\n\n"
+                    yield f"data: {json.dumps(event)}\n\n"
+                
+                elif event["type"] == "error":
+                    yield f"data: {json.dumps(event)}\n\n"
             
-            # Save assistant message to DB using new session
+            # Save assistant message with steps to DB
             async with async_session() as db2:
-                if assistant_content:
+                if assistant_content or collected_steps:
                     msg = Message(
                         session_id=session_id,
                         role="assistant",
-                        content=assistant_content
+                        content=assistant_content,
+                        steps=json.dumps(collected_steps) if collected_steps else None
                     )
                     db2.add(msg)
 
@@ -190,7 +276,7 @@ async def list_messages(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all messages for a session."""
+    """Get all messages for a session, including persisted tool steps."""
     # Verify session
     result = await db.execute(
         select(Session).where(
@@ -208,9 +294,14 @@ async def list_messages(
     )
     messages = result.scalars().all()
     
+    # Return messages with steps parsed from JSON
     return [
-        MessageResponse(
-            id=m.id, session_id=m.session_id, role=m.role,
-            content=m.content, created_at=m.created_at
-        ) for m in messages
+        {
+            "id": m.id,
+            "session_id": m.session_id,
+            "role": m.role,
+            "content": m.content,
+            "steps": json.loads(m.steps) if m.steps else None,
+            "created_at": m.created_at.isoformat()
+        } for m in messages
     ]

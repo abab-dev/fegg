@@ -63,6 +63,7 @@ class Message(Base):
     session_id = Column(String, ForeignKey("sessions.id"), nullable=False)
     role = Column(String, nullable=False)  # user, assistant
     content = Column(Text, nullable=False)
+    steps = Column(Text, nullable=True)  # JSON array of tool steps for persistence
     created_at = Column(DateTime, default=datetime.utcnow)
     
     session = relationship("Session", back_populates="messages")
