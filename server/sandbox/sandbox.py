@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-E2B_TEMPLATE = os.getenv("E2B_TEMPLATE", "react-vite-shadcn-bun")
+E2B_TEMPLATE = os.getenv("E2B_TEMPLATE_ID", "599n6agqtub6wrffkd5y")
 
 E2B_TIMEOUT = int(os.getenv("E2B_TIMEOUT", "900"))
 

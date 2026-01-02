@@ -11,3 +11,4 @@ wheels/
 frontend_agent/workspace-fe-developer/node_modules
 .env
 frontend_agent/workspace
+server/api/fegg.db
