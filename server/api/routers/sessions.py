@@ -9,7 +9,6 @@ from sqlalchemy import select
 from server.api.database import get_db, Session
 from server.api.models import SessionResponse
 from server.api.auth import get_current_user
-from server.api.services.sandbox_manager import create_sandbox
 from server.api.services.agent_runner import destroy_user_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
@@ -19,34 +18,22 @@ async def create_session(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new session with E2B sandbox."""
+    """Create a new session WITHOUT sandbox (lazy spawning).
+    
+    Sandbox is created on first message to save resources.
+    """
     session_id = str(uuid.uuid4())
     user_id = current_user["id"]
     
-    # Create session in creating state
+    # Create session in pending state (no sandbox yet)
     session = Session(
         id=session_id,
         user_id=user_id,
-        status="creating"
+        status="pending"  # No sandbox yet
     )
     db.add(session)
     await db.commit()
-    
-    try:
-        # Create E2B sandbox (keyed by user_id for SandboxManager)
-        sandbox_id, preview_url = await create_sandbox(session_id, user_id)
-        
-        # Update session with sandbox info
-        session.sandbox_id = sandbox_id
-        session.preview_url = preview_url
-        session.status = "ready"
-        await db.commit()
-        await db.refresh(session)
-        
-    except Exception as e:
-        session.status = "error"
-        await db.commit()
-        raise HTTPException(status_code=500, detail=f"Failed to create sandbox: {e}")
+    await db.refresh(session)
     
     return SessionResponse(
         id=session.id,

@@ -11,16 +11,26 @@ import { Textarea } from "@/components/ui/textarea"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
-    Menu, Plus, Send, Terminal, Layout, Monitor,
-    LogOut, MessageSquare, ExternalLink, RefreshCw
+    Menu, Plus, Send, Layout, Monitor,
+    LogOut, MessageSquare, ExternalLink, RefreshCw,
+    Loader2, Check, AlertCircle, FolderOpen, FileCode, Terminal, Rocket
 } from "lucide-react"
 import { toast } from "sonner"
+
+// Activity item type
+interface ActivityItem {
+    id: string
+    type: "status" | "tool" | "preview" | "error"
+    title: string
+    status: "running" | "done" | "error"
+    detail?: string
+}
 
 export function Dashboard() {
     const { user, logout, token } = useAuthStore()
     const chatStore = useChatStore()
     const [input, setInput] = useState("")
-    const [activity, setActivity] = useState<string | null>(null)
+    const [activities, setActivities] = useState<ActivityItem[]>([])
     const scrollRef = useRef<HTMLDivElement>(null)
 
     // Fetch sessions on mount
@@ -53,7 +63,9 @@ export function Dashboard() {
 
     async function selectSession(id: string) {
         chatStore.setCurrentSession(id)
-        chatStore.setPreviewUrl(chatStore.sessions.find(s => s.id === id)?.preview_url || null)
+        const session = chatStore.sessions.find(s => s.id === id)
+        chatStore.setPreviewUrl(session?.preview_url || null)
+        setActivities([]) // Clear activities when switching sessions
         try {
             const msgs = await api.get(`sessions/${id}/messages`).json<Message[]>()
             chatStore.setMessages(msgs)
@@ -62,12 +74,36 @@ export function Dashboard() {
         }
     }
 
+    function addActivity(item: Omit<ActivityItem, "id">) {
+        const id = `${Date.now()}-${Math.random()}`
+        setActivities(prev => [...prev, { ...item, id }])
+        return id
+    }
+
+    function updateActivity(id: string, updates: Partial<ActivityItem>) {
+        setActivities(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a))
+    }
+
+    function getToolIcon(toolName: string) {
+        if (toolName.includes("file") || toolName.includes("read") || toolName.includes("write")) {
+            return <FileCode className="h-3 w-3" />
+        }
+        if (toolName.includes("list") || toolName.includes("find")) {
+            return <FolderOpen className="h-3 w-3" />
+        }
+        if (toolName.includes("server") || toolName.includes("dev")) {
+            return <Rocket className="h-3 w-3" />
+        }
+        return <Terminal className="h-3 w-3" />
+    }
+
     async function sendMessage(e?: React.FormEvent) {
         if (e) e.preventDefault()
         if (!input.trim() || !chatStore.currentSessionId || chatStore.isLoading) return
 
         const content = input
         setInput("")
+        setActivities([]) // Clear previous activities
 
         // Add user message
         const userMsg: Message = { role: "user", content }
@@ -95,8 +131,10 @@ export function Dashboard() {
             const decoder = new TextDecoder()
 
             chatStore.setStreaming(true)
-            let assistantMsg: Message = { role: "assistant", content: "" }
-            chatStore.addMessage(assistantMsg) // Add placeholder
+            let hasAssistantMessage = false
+
+            // Track tool activities by name
+            const toolActivities: Record<string, string> = {}
 
             while (true) {
                 const { done, value } = await reader.read()
@@ -109,7 +147,80 @@ export function Dashboard() {
                     if (line.startsWith("data: ")) {
                         try {
                             const data = JSON.parse(line.slice(6))
-                            handleEvent(data)
+
+                            switch (data.type) {
+                                case "status":
+                                    // Status events (setting up environment, etc.)
+                                    addActivity({
+                                        type: "status",
+                                        title: data.message,
+                                        status: data.message.includes("ready") ? "done" : "running"
+                                    })
+                                    break
+
+                                case "tool_start":
+                                    // Tool starting
+                                    const toolId = addActivity({
+                                        type: "tool",
+                                        title: data.tool.replace(/_/g, " "),
+                                        status: "running"
+                                    })
+                                    toolActivities[data.tool] = toolId
+                                    break
+
+                                case "tool_end":
+                                    // Tool completed
+                                    const activityId = toolActivities[data.tool]
+                                    if (activityId) {
+                                        const resultPreview = data.result?.slice(0, 50) || ""
+                                        updateActivity(activityId, {
+                                            status: "done",
+                                            detail: resultPreview + (data.result?.length > 50 ? "..." : "")
+                                        })
+                                    }
+                                    break
+
+                                case "user_message":
+                                    // Agent message content
+                                    if (!hasAssistantMessage) {
+                                        chatStore.addMessage({ role: "assistant", content: "" })
+                                        hasAssistantMessage = true
+                                    }
+                                    useChatStore.setState((state) => {
+                                        const msgs = [...state.messages]
+                                        if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
+                                            msgs[msgs.length - 1] = {
+                                                ...msgs[msgs.length - 1],
+                                                content: msgs[msgs.length - 1].content + data.content
+                                            }
+                                        }
+                                        return { messages: msgs }
+                                    })
+                                    break
+
+                                case "preview_ready":
+                                    chatStore.setPreviewUrl(data.url)
+                                    addActivity({
+                                        type: "preview",
+                                        title: "Preview ready",
+                                        status: "done"
+                                    })
+                                    break
+
+                                case "error":
+                                    addActivity({
+                                        type: "error",
+                                        title: data.message,
+                                        status: "error"
+                                    })
+                                    toast.error(data.message)
+                                    break
+
+                                case "done":
+                                    chatStore.setLoading(false)
+                                    chatStore.setStreaming(false)
+                                    break
+                            }
                         } catch (e) {
                             // Ignore parse errors for partial chunks
                         }
@@ -125,45 +236,15 @@ export function Dashboard() {
         }
     }
 
-    function handleEvent(event: any) {
-        switch (event.type) {
-            case "tool_start":
-                setActivity(`Running ${event.tool}...`)
-                break
-            case "tool_end":
-                setActivity(null)
-                break
-            case "user_message":
-                // Set the assistant message content directly
-                useChatStore.setState((state) => {
-                    const msgs = [...state.messages]
-                    if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
-                        msgs[msgs.length - 1] = {
-                            ...msgs[msgs.length - 1],
-                            content: msgs[msgs.length - 1].content + event.content
-                        }
-                    }
-                    return { messages: msgs }
-                })
-                break
-            case "preview_ready":
-                chatStore.setPreviewUrl(event.url)
-                toast.success("Preview updated")
-                break
-            case "done":
-                chatStore.setLoading(false)
-                chatStore.setStreaming(false)
-                setActivity(null)
-                break
-        }
-    }
-
     // Auto scroll to bottom
     useEffect(() => {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-    }, [chatStore.messages, activity])
+    }, [chatStore.messages, activities])
+
+    const currentSession = chatStore.sessions.find(s => s.id === chatStore.currentSessionId)
+    const isPending = currentSession?.status === "pending"
 
     return (
         <div className="flex h-screen w-full bg-background overflow-hidden relative">
@@ -276,6 +357,11 @@ export function Dashboard() {
                                 <p className="text-sm max-w-md mt-2">
                                     Describe what you want to create. FeGG will generate, run, and preview your React application in real-time.
                                 </p>
+                                {isPending && (
+                                    <p className="text-xs text-muted-foreground mt-4">
+                                        Environment will be set up when you send your first message.
+                                    </p>
+                                )}
                             </div>
                         ) : (
                             chatStore.messages.map((msg, i) => (
@@ -283,11 +369,39 @@ export function Dashboard() {
                             ))
                         )}
 
-                        {/* Activity Indicator */}
-                        {activity && (
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground p-4 animate-pulse">
-                                <Terminal className="h-3 w-3" />
-                                <span>{activity}</span>
+                        {/* Activity Log */}
+                        {activities.length > 0 && (
+                            <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
+                                <div className="space-y-2">
+                                    {activities.map((activity) => (
+                                        <div key={activity.id} className="flex items-center gap-2 text-xs">
+                                            {activity.status === "running" ? (
+                                                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                            ) : activity.status === "done" ? (
+                                                <Check className="h-3 w-3 text-green-500" />
+                                            ) : (
+                                                <AlertCircle className="h-3 w-3 text-destructive" />
+                                            )}
+
+                                            {activity.type === "tool" && getToolIcon(activity.title)}
+
+                                            <span className={cn(
+                                                "capitalize",
+                                                activity.status === "running" && "text-muted-foreground",
+                                                activity.status === "done" && "text-foreground",
+                                                activity.status === "error" && "text-destructive"
+                                            )}>
+                                                {activity.title}
+                                            </span>
+
+                                            {activity.detail && (
+                                                <span className="text-muted-foreground truncate max-w-[200px]">
+                                                    → {activity.detail}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -314,7 +428,11 @@ export function Dashboard() {
                                 onClick={() => sendMessage()}
                                 disabled={chatStore.isLoading || !input.trim() || !chatStore.currentSessionId}
                             >
-                                <Send className="h-4 w-4" />
+                                {chatStore.isLoading ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <Send className="h-4 w-4" />
+                                )}
                             </Button>
                         </div>
                         <div className="text-[10px] text-muted-foreground mt-2 text-center">
@@ -327,10 +445,17 @@ export function Dashboard() {
                 <div className="hidden md:flex flex-col w-[60%] border-l border-border bg-muted/10 h-full relative">
                     <div className="h-12 border-b border-border/50 bg-background/50 backdrop-blur flex items-center justify-between px-4">
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                            <span className="truncate max-w-[300px]">
-                                {chatStore.currentPreviewUrl || "Waiting for server..."}
-                            </span>
+                            {chatStore.currentPreviewUrl ? (
+                                <>
+                                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                                    <span className="truncate max-w-[300px]">{chatStore.currentPreviewUrl}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="h-2 w-2 rounded-full bg-muted-foreground/50" />
+                                    <span>Preview will appear here</span>
+                                </>
+                            )}
                         </div>
                         <div className="flex items-center gap-2">
                             <Button
@@ -338,6 +463,7 @@ export function Dashboard() {
                                 size="sm"
                                 onClick={() => chatStore.currentSessionId && selectSession(chatStore.currentSessionId)}
                                 title="Refresh Preview"
+                                disabled={!chatStore.currentPreviewUrl}
                             >
                                 <RefreshCw className="h-4 w-4" />
                             </Button>
@@ -360,9 +486,18 @@ export function Dashboard() {
                                 sandbox="allow-forms allow-modals allow-popups allow-presentation allow-same-origin allow-scripts"
                             />
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50">
-                                <Layout className="h-12 w-12 mb-4 opacity-20" />
-                                <p>Preview will appear here</p>
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <div className="relative">
+                                    <Layout className="h-16 w-16 opacity-10" />
+                                    {chatStore.isLoading && (
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                        </div>
+                                    )}
+                                </div>
+                                <p className="mt-4 text-sm">
+                                    {chatStore.isLoading ? "Setting up preview..." : "Send a message to start"}
+                                </p>
                             </div>
                         )}
                     </div>

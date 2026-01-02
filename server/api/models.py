@@ -31,7 +31,7 @@ class SessionResponse(BaseModel):
     user_id: str
     sandbox_id: Optional[str]
     preview_url: Optional[str]
-    status: Literal["creating", "ready", "busy", "error", "terminated"]
+    status: Literal["pending", "creating", "ready", "busy", "error", "terminated"]
     created_at: datetime
 
 # Messages

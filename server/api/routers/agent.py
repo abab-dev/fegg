@@ -10,6 +10,7 @@ from server.api.database import get_db, Session, Message, async_session
 from server.api.models import MessageCreate, MessageResponse
 from server.api.auth import get_current_user
 from server.api.services.agent_runner import stream_agent_events
+from server.api.services.sandbox_manager import create_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
 
@@ -41,7 +42,8 @@ async def send_message(
     if session.status == "busy":
         raise HTTPException(status_code=409, detail="Session is busy")
     
-    if session.status != "ready":
+    # Allow pending (no sandbox yet) or ready sessions
+    if session.status not in ["pending", "ready"]:
         raise HTTPException(status_code=400, detail=f"Session not ready: {session.status}")
     
     # Store user message
@@ -57,8 +59,9 @@ async def send_message(
     session.last_activity = datetime.utcnow()
     await db.commit()
     
-    # Store pending message with user_id
-    _pending_messages[session_id] = (user_id, body.content)
+    # Store pending message with user_id and needs_sandbox flag
+    needs_sandbox = session.sandbox_id is None
+    _pending_messages[session_id] = (user_id, body.content, needs_sandbox)
     
     return {"status": "processing", "stream_url": f"/sessions/{session_id}/sse"}
 
@@ -84,11 +87,38 @@ async def stream_events(
     if not pending:
         raise HTTPException(status_code=400, detail="No pending message")
     
-    user_id, message = pending
+    user_id, message, needs_sandbox = pending
     
     async def generate():
         assistant_content = ""
+        preview_url = None
+        
         try:
+            # If sandbox doesn't exist, create it now with status events
+            if needs_sandbox:
+                yield f"data: {json.dumps({'type': 'status', 'message': 'Setting up environment...'})}\n\n"
+                
+                try:
+                    sandbox_id, preview_url = await create_sandbox(session_id, user_id)
+                    
+                    # Update session in DB with sandbox info
+                    async with async_session() as db2:
+                        result = await db2.execute(select(Session).where(Session.id == session_id))
+                        session = result.scalar_one_or_none()
+                        if session:
+                            session.sandbox_id = sandbox_id
+                            session.preview_url = preview_url
+                        await db2.commit()
+                    
+                    yield f"data: {json.dumps({'type': 'status', 'message': 'Environment ready'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
+                    
+                except Exception as e:
+                    yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
+                    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                    return
+            
+            # Stream agent events
             async for event in stream_agent_events(user_id, message):
                 # Accumulate user_message content for saving
                 if event["type"] == "user_message":
@@ -106,7 +136,7 @@ async def stream_events(
                     )
                     db2.add(msg)
                 
-                # Mark session as ready
+                # Mark session as ready and update preview URL if set
                 result = await db2.execute(select(Session).where(Session.id == session_id))
                 session = result.scalar_one_or_none()
                 if session:
