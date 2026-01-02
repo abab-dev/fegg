@@ -111,7 +111,6 @@ async def stream_events(
                         await db2.commit()
                     
                     yield f"data: {json.dumps({'type': 'status', 'message': 'Environment ready'})}\n\n"
-                    yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
                     
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
@@ -119,6 +118,7 @@ async def stream_events(
                     return
             
             # Stream agent events
+            preview_emitted = False
             async for event in stream_agent_events(user_id, session_id, message):
                 # Accumulate user_message content for saving
                 if event["type"] == "user_message":
@@ -127,10 +127,16 @@ async def stream_events(
                 # Capture preview URL from preview_ready or done event
                 if event["type"] == "preview_ready":
                     preview_url = event.get("url")
+                    preview_emitted = True
                 elif event["type"] == "done":
                     url = event.get("preview_url")
                     if url:
                         preview_url = url
+                    
+                    # Ensure preview is sent before done if we have it
+                    if not preview_emitted and preview_url:
+                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
+                        preview_emitted = True
 
                 yield f"data: {json.dumps(event)}\n\n"
             
