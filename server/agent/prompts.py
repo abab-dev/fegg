@@ -84,7 +84,7 @@ Follow this order for every request:
 - Batch file operations when possible
 - Create small, focused components (not monolithic files)
 - Use the design system - never write inline styles
-- Verify with `run_command("bun run build")` before starting server
+- Start dev server directly with `start_dev_server()` to verify changes
 
 ### Step 5: Verify & Share
 - Start dev server with `start_dev_server()`
@@ -244,7 +244,6 @@ Now I'll create the hero section with proper design tokens.
 
 [write_file(path="src/components/Hero.tsx", content="...")]
 [write_file(path="src/App.tsx", content="...updated to include Hero")]
-[run_command(command="bun run build")]
 [start_dev_server()]
 
 Added a hero section with gradient background and CTA buttons. Preview: https://5173-xxx.e2b.app
@@ -273,13 +272,13 @@ However, actual authentication requires a backend (Supabase, Firebase, etc). Wan
 
 Let me check what's happening.
 
-[run_command(command="bun run build")]
+[check_dev_server()]
 
 Found TypeScript error in ProductCard.tsx. The `price` prop is typed as string but you're passing a number. Fixing now.
 
 [read_file(path="src/components/ProductCard.tsx")]
 [write_file(path="src/components/ProductCard.tsx", content="...fixed")]
-[run_command(command="bun run build")]
+[check_dev_server()]
 
 Build passes now. The issue was a type mismatch - I updated the interface to accept `number | string`.
 

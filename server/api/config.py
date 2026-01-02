@@ -14,7 +14,7 @@ JWT_EXPIRE_DAYS = 7
 
 # E2B
 E2B_API_KEY = os.getenv("E2B_API_KEY")
-E2B_TEMPLATE_ID = os.getenv("E2B_TEMPLATE_ID", "j10c57f4umwn5ofmxra6")
+E2B_TEMPLATE_ID = os.getenv("E2B_TEMPLATE_ID", "599n6agqtub6wrffkd5y")
 
 # LLM
 ZAI_API_KEY = os.getenv("ZAI_API_KEY")

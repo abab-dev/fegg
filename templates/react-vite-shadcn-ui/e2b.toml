@@ -1,0 +1,14 @@
+# E2B Template Configuration
+# https://e2b.dev/docs/sandbox-template
+
+# Unique template ID (will be assigned by e2b)
+template_id = "react-vite-shadcn"
+
+# Dockerfile to use for building the template
+dockerfile = "e2b.Dockerfile"
+
+# Template name
+template_name = "React Vite Shadcn UI"
+
+# Start command (optional)
+# start_cmd = "cd /home/user/workspace && bun run dev"
