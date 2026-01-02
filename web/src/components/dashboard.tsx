@@ -32,6 +32,7 @@ export function Dashboard() {
     const [input, setInput] = useState("")
     const [activities, setActivities] = useState<ActivityItem[]>([])
     const scrollRef = useRef<HTMLDivElement>(null)
+    const iframeRef = useRef<HTMLIFrameElement>(null)
 
     // Fetch sessions on mount
     useEffect(() => {
@@ -200,6 +201,14 @@ export function Dashboard() {
 
                                 case "preview_ready":
                                     chatStore.setPreviewUrl(data.url)
+                                    // Also update the session in the sessions array
+                                    chatStore.setSessions(
+                                        chatStore.sessions.map(s =>
+                                            s.id === chatStore.currentSessionId
+                                                ? { ...s, preview_url: data.url }
+                                                : s
+                                        )
+                                    )
                                     addActivity({
                                         type: "preview",
                                         title: "Preview ready",
@@ -461,7 +470,11 @@ export function Dashboard() {
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => chatStore.currentSessionId && selectSession(chatStore.currentSessionId)}
+                                onClick={() => {
+                                    if (iframeRef.current) {
+                                        iframeRef.current.src = iframeRef.current.src
+                                    }
+                                }}
                                 title="Refresh Preview"
                                 disabled={!chatStore.currentPreviewUrl}
                             >
@@ -480,6 +493,7 @@ export function Dashboard() {
                     <div className="flex-1 relative bg-white/5">
                         {chatStore.currentPreviewUrl ? (
                             <iframe
+                                ref={iframeRef}
                                 src={chatStore.currentPreviewUrl}
                                 className="w-full h-full border-0"
                                 title="Preview"
