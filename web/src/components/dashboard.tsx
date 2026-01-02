@@ -32,7 +32,6 @@ export function Dashboard() {
     const { user, logout, token } = useAuthStore()
     const chatStore = useChatStore()
     const [input, setInput] = useState("")
-    const [activities, setActivities] = useState<ActivityItem[]>([])
     const scrollRef = useRef<HTMLDivElement>(null)
     const [iframeKey, setIframeKey] = useState(0)
 
@@ -59,7 +58,6 @@ export function Dashboard() {
             chatStore.setCurrentSession(session.id)
             chatStore.setMessages([])
             chatStore.setPreviewUrl(null)
-            setActivities([])
         } catch (error) {
             toast.error("Failed to create session")
         }
@@ -69,7 +67,6 @@ export function Dashboard() {
         chatStore.setCurrentSession(id)
         const session = chatStore.sessions.find(s => s.id === id)
         chatStore.setPreviewUrl(session?.preview_url || null)
-        setActivities([]) // Clear activities when switching sessions
         try {
             const msgs = await api.get(`sessions/${id}/messages`).json<Message[]>()
             chatStore.setMessages(msgs)
@@ -78,15 +75,6 @@ export function Dashboard() {
         }
     }
 
-    function addActivity(item: Omit<ActivityItem, "id">) {
-        const id = `${Date.now()}-${Math.random()}`
-        setActivities(prev => [...prev, { ...item, id }])
-        return id
-    }
-
-    function updateActivity(id: string, updates: Partial<ActivityItem>) {
-        setActivities(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a))
-    }
 
     async function sendMessage(e?: React.FormEvent) {
         if (e) e.preventDefault()
@@ -94,7 +82,6 @@ export function Dashboard() {
 
         const content = input
         setInput("")
-        setActivities([]) // Clear previous activities
 
         // Add user message
         const userMsg: Message = { role: "user", content }
@@ -123,8 +110,6 @@ export function Dashboard() {
 
             chatStore.setStreaming(true)
             let hasAssistantMessage = false
-
-            // Track tool activities by name
             const toolActivities: Record<string, string> = {}
 
             while (true) {
@@ -139,51 +124,72 @@ export function Dashboard() {
                         try {
                             const data = JSON.parse(line.slice(6))
 
+                            // Ensure assistant message exists
+                            if (!hasAssistantMessage && (data.type !== 'done')) {
+                                chatStore.addMessage({ role: "assistant", content: "", steps: [] })
+                                hasAssistantMessage = true
+                            }
+
                             switch (data.type) {
                                 case "status":
-                                    // Status events (setting up environment, etc.)
-                                    addActivity({
-                                        type: "status",
-                                        title: data.message,
-                                        status: data.message.includes("ready") ? "done" : "running"
-                                    })
-                                    break
-
                                 case "tool_start":
-                                    // Tool starting
-                                    const toolId = addActivity({
-                                        type: "tool",
-                                        title: data.tool.replace(/_/g, " "),
-                                        status: "running"
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg.role !== 'assistant') return { messages: msgs }
+
+                                        const id = `${Date.now()}-${Math.random()}`
+
+                                        // Cleaner titles for Lovable style
+                                        let title = data.message || data.tool
+                                        if (data.type === 'tool_start') {
+                                            const toolName = data.tool.toLowerCase()
+                                            if (toolName.includes("write")) title = "Edited file"
+                                            else if (toolName.includes("read")) title = "Read file"
+                                            else if (toolName.includes("list")) title = "Checked folder"
+                                            else title = data.tool.replace(/_/g, " ")
+                                        }
+
+                                        const newStep: any = {
+                                            id,
+                                            type: data.type === 'status' ? 'status' : 'tool',
+                                            title: title,
+                                            status: data.type === 'status' && data.message.includes("ready") ? "done" : "running"
+                                        }
+
+                                        if (data.type === 'tool_start') {
+                                            toolActivities[data.tool] = id
+                                        }
+
+                                        lastMsg.steps = [...(lastMsg.steps || []), newStep]
+                                        return { messages: msgs }
                                     })
-                                    toolActivities[data.tool] = toolId
                                     break
 
                                 case "tool_end":
-                                    // Tool completed
-                                    const activityId = toolActivities[data.tool]
-                                    if (activityId) {
-                                        const resultPreview = data.result?.slice(0, 50) || ""
-                                        updateActivity(activityId, {
-                                            status: "done",
-                                            detail: resultPreview + (data.result?.length > 50 ? "..." : "")
-                                        })
-                                    }
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (!lastMsg.steps) return { messages: msgs }
+
+                                        const stepId = toolActivities[data.tool]
+                                        if (stepId) {
+                                            lastMsg.steps = lastMsg.steps.map(s =>
+                                                s.id === stepId
+                                                    ? { ...s, status: "done", detail: data.result?.slice(0, 30) }
+                                                    : s
+                                            )
+                                        }
+                                        return { messages: msgs }
+                                    })
                                     break
 
                                 case "user_message":
-                                    // Agent message content
-                                    if (!hasAssistantMessage) {
-                                        chatStore.addMessage({ role: "assistant", content: "" })
-                                        hasAssistantMessage = true
-                                    }
-                                    useChatStore.setState((state) => {
+                                    useChatStore.setState(state => {
                                         const msgs = [...state.messages]
-                                        if (msgs.length > 0 && msgs[msgs.length - 1].role === "assistant") {
-                                            msgs[msgs.length - 1] = {
-                                                ...msgs[msgs.length - 1],
-                                                content: msgs[msgs.length - 1].content + data.content
-                                            }
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg.role === 'assistant') {
+                                            lastMsg.content += data.content
                                         }
                                         return { messages: msgs }
                                     })
@@ -191,7 +197,7 @@ export function Dashboard() {
 
                                 case "preview_ready":
                                     chatStore.setPreviewUrl(data.url)
-                                    // Also update the session in the sessions array
+                                    // Update persistence
                                     chatStore.setSessions(
                                         chatStore.sessions.map(s =>
                                             s.id === chatStore.currentSessionId
@@ -199,20 +205,38 @@ export function Dashboard() {
                                                 : s
                                         )
                                     )
-                                    addActivity({
-                                        type: "preview",
-                                        title: "Preview ready",
-                                        status: "done"
+                                    // Add preview ready step
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg?.role === 'assistant') {
+                                            lastMsg.steps = [...(lastMsg.steps || []), {
+                                                id: `p-${Date.now()}`,
+                                                type: 'preview',
+                                                title: 'Preview Ready',
+                                                status: 'done'
+                                            }]
+                                        }
+                                        return { messages: msgs }
                                     })
                                     break
 
                                 case "error":
-                                    addActivity({
-                                        type: "error",
-                                        title: data.message,
-                                        status: "error"
-                                    })
                                     toast.error(data.message)
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg?.role === 'assistant') {
+                                            lastMsg.steps = [...(lastMsg.steps || []), {
+                                                id: `e-${Date.now()}`,
+                                                type: 'error',
+                                                title: "Error occurred",
+                                                detail: data.message,
+                                                status: 'error'
+                                            }]
+                                        }
+                                        return { messages: msgs }
+                                    })
                                     break
 
                                 case "done":
@@ -221,7 +245,7 @@ export function Dashboard() {
                                     break
                             }
                         } catch (e) {
-                            // Ignore parse errors for partial chunks
+                            // Ignore
                         }
                     }
                 }
@@ -240,7 +264,11 @@ export function Dashboard() {
         if (scrollRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight
         }
-    }, [chatStore.messages, activities])
+    }, [chatStore.messages])
+
+    // Get current steps for loading state (just the last message's steps if strictly needed, 
+    // but the persistent steps handle the view now)
+    const currentSteps = chatStore.messages.length > 0 ? chatStore.messages[chatStore.messages.length - 1].steps || [] : []
 
     return (
         <div className="flex h-screen w-full bg-[#09090b] text-zinc-100 overflow-hidden relative font-sans">
@@ -335,72 +363,71 @@ export function Dashboard() {
                                                 ? "bg-[#27272a] text-zinc-100"
                                                 : "bg-transparent text-zinc-300 pl-0"
                                         )}>
-                                            <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
-                                                <ReactMarkdown
-                                                    components={{
-                                                        code({ node, className, children, ...props }: any) {
-                                                            const match = /language-(\w+)/.exec(className || '')
-                                                            return match ? (
-                                                                <SyntaxHighlighter
-                                                                    {...props}
-                                                                    style={vscDarkPlus}
-                                                                    language={match[1]}
-                                                                    PreTag="div"
-                                                                    className="rounded-md border border-zinc-800 !bg-[#000000] !p-4 my-2"
-                                                                >
-                                                                    {String(children).replace(/\n$/, '')}
-                                                                </SyntaxHighlighter>
-                                                            ) : (
-                                                                <code {...props} className={cn("bg-white/10 px-1 py-0.5 rounded font-mono text-xs", className)}>
-                                                                    {children}
-                                                                </code>
-                                                            )
-                                                        }
-                                                    }}
-                                                >
-                                                    {msg.content}
-                                                </ReactMarkdown>
-                                            </div>
+                                            {/* Message Content */}
+                                            {msg.content && (
+                                                <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent">
+                                                    <ReactMarkdown
+                                                        components={{
+                                                            code({ node, className, children, ...props }: any) {
+                                                                const match = /language-(\w+)/.exec(className || '')
+                                                                return match ? (
+                                                                    <SyntaxHighlighter
+                                                                        {...props}
+                                                                        style={vscDarkPlus}
+                                                                        language={match[1]}
+                                                                        PreTag="div"
+                                                                        className="rounded-md border border-zinc-800 !bg-[#000000] !p-4 my-2"
+                                                                    >
+                                                                        {String(children).replace(/\n$/, '')}
+                                                                    </SyntaxHighlighter>
+                                                                ) : (
+                                                                    <code {...props} className={cn("bg-white/10 px-1 py-0.5 rounded font-mono text-xs", className)}>
+                                                                        {children}
+                                                                    </code>
+                                                                )
+                                                            }
+                                                        }}
+                                                    >
+                                                        {msg.content}
+                                                    </ReactMarkdown>
+                                                </div>
+                                            )}
+
+                                            {/* Persistent Steps (Lovable style flat list) */}
+                                            {msg.steps && msg.steps.length > 0 && (
+                                                <div className="mt-3 flex flex-col gap-1.5">
+                                                    {msg.steps.map((step) => (
+                                                        <div key={step.id} className="flex items-center gap-2.5 text-xs text-zinc-500 font-mono">
+                                                            <div className="w-3.5 flex justify-center">
+                                                                {step.status === "running" ? (
+                                                                    <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
+                                                                ) : step.type === 'preview' ? (
+                                                                    <Check className="h-3 w-3 text-green-500" />
+                                                                ) : step.type === 'error' ? (
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-red-500" />
+                                                                ) : (
+                                                                    <div className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
+                                                                )}
+                                                            </div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={cn(
+                                                                    step.status === "running" ? "text-zinc-300" : "text-zinc-500"
+                                                                )}>
+                                                                    {step.title}
+                                                                </span>
+                                                                {step.detail && (
+                                                                    <span className="opacity-40 truncate max-w-[150px]">
+                                                                        {step.detail}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 ))}
-
-                                {/* Activity Log (Styled like steps) */}
-                                {activities.length > 0 && (
-                                    <div className="ml-0 mt-2 space-y-3 font-mono text-xs text-zinc-500 px-4">
-                                        {activities.map((activity) => (
-                                            <div key={activity.id} className="flex items-center gap-3">
-                                                <div className="w-4 flex justify-center">
-                                                    {activity.status === "running" ? (
-                                                        <Loader2 className="h-3 w-3 animate-spin text-orange-500" />
-                                                    ) : activity.status === "done" ? (
-                                                        <Check className="h-3 w-3 text-emerald-500" />
-                                                    ) : (
-                                                        <div className="h-1.5 w-1.5 rounded-full bg-zinc-700" />
-                                                    )}
-                                                </div>
-
-                                                <div className="flex items-center gap-2">
-                                                    {activity.type === "tool" && <Terminal className="h-3 w-3 opacity-50" />}
-                                                    <span className={cn(
-                                                        activity.status === "running" && "text-zinc-400",
-                                                        activity.status === "done" && "text-zinc-600 line-through opacity-50"
-                                                    )}>
-                                                        {activity.title}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {chatStore.isLoading && activities.every(a => a.status === 'done') && (
-                                            <div className="flex items-center gap-3 animate-pulse">
-                                                <div className="w-4 flex justify-center">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-orange-500" />
-                                                </div>
-                                                <span className="text-zinc-400">Thinking...</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </>
                         )}
                     </div>
@@ -493,7 +520,7 @@ export function Dashboard() {
                                         </div>
                                         <h3 className="text-zinc-300 font-medium mb-2">Building your app</h3>
                                         <div className="flex flex-col gap-2 w-64">
-                                            {activities.slice(-3).map(a => (
+                                            {currentSteps.slice(-3).map(a => (
                                                 <div key={a.id} className="text-xs text-zinc-500 flex items-center gap-2 truncate">
                                                     <div className="h-1 w-1 bg-zinc-600 rounded-full" />
                                                     {a.title}

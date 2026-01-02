@@ -5,6 +5,15 @@ export interface Message {
     role: 'user' | 'assistant';
     content: string;
     timestamp?: string;
+    steps?: Step[]; // Persisted tool/status steps
+}
+
+export interface Step {
+    id: string
+    type: "status" | "tool" | "preview" | "error"
+    title: string
+    status: "running" | "done" | "error"
+    detail?: string
 }
 
 export interface Session {
@@ -12,7 +21,7 @@ export interface Session {
     preview_url: string | null;
     status: string;
     created_at: string;
-    title?: string; // Derived from first message or AI generated
+    title?: string;
 }
 
 interface ChatState {
