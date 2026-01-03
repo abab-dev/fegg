@@ -4,11 +4,27 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* =============================================================================
+   FEGG DESIGN SYSTEM
+   
+   This file contains the complete design system for shadcn/ui components.
+   The agent knows these utilities exist - use them!
+   
+   SECTIONS:
+   1. Theme Variables (colors, radius)
+   2. Gradient Presets (bg-gradient-*)
+   3. Animation Classes (animate-*)
+   4. Theme Presets (.theme-*)
+   ============================================================================= */
+
 @theme inline {
+  /* Radius tokens */
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Color mappings for Tailwind */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -40,27 +56,25 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Accordion animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   @keyframes accordion-down {
-    from {
-      height: 0;
-    }
-    to {
-      height: var(--radix-accordion-content-height);
-    }
+    from { height: 0; }
+    to { height: var(--radix-accordion-content-height); }
   }
 
   @keyframes accordion-up {
-    from {
-      height: var(--radix-accordion-content-height);
-    }
-    to {
-      height: 0;
-    }
+    from { height: var(--radix-accordion-content-height); }
+    to { height: 0; }
   }
 }
+
+/* =============================================================================
+   1. DEFAULT THEME (Neutral)
+   ============================================================================= */
 
 :root {
   --radius: 0.625rem;
@@ -130,6 +144,270 @@
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
+
+/* =============================================================================
+   2. THEME PRESETS
+   Add class to <html> or <body> to switch themes: class="theme-ocean"
+   ============================================================================= */
+
+/* Ocean - Deep blue professional */
+.theme-ocean {
+  --primary: oklch(0.55 0.2 250);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.65 0.15 200);
+  --accent-foreground: oklch(0.1 0 0);
+  --ring: oklch(0.55 0.2 250);
+}
+.theme-ocean.dark {
+  --primary: oklch(0.65 0.2 250);
+  --accent: oklch(0.5 0.15 200);
+}
+
+/* Sunset - Warm orange/coral */
+.theme-sunset {
+  --primary: oklch(0.65 0.22 30);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.7 0.18 50);
+  --accent-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.65 0.22 30);
+}
+.theme-sunset.dark {
+  --primary: oklch(0.7 0.22 30);
+  --accent: oklch(0.6 0.18 50);
+}
+
+/* Forest - Natural green */
+.theme-forest {
+  --primary: oklch(0.55 0.15 145);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.6 0.12 160);
+  --accent-foreground: oklch(0.1 0 0);
+  --ring: oklch(0.55 0.15 145);
+}
+.theme-forest.dark {
+  --primary: oklch(0.6 0.15 145);
+  --accent: oklch(0.5 0.12 160);
+}
+
+/* Violet - Creative purple */
+.theme-violet {
+  --primary: oklch(0.55 0.25 290);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.6 0.2 320);
+  --accent-foreground: oklch(0.1 0 0);
+  --ring: oklch(0.55 0.25 290);
+}
+.theme-violet.dark {
+  --primary: oklch(0.65 0.25 290);
+  --accent: oklch(0.55 0.2 320);
+}
+
+/* Rose - Soft pink */
+.theme-rose {
+  --primary: oklch(0.65 0.2 350);
+  --primary-foreground: oklch(0.98 0 0);
+  --accent: oklch(0.7 0.15 10);
+  --accent-foreground: oklch(0.15 0 0);
+  --ring: oklch(0.65 0.2 350);
+}
+.theme-rose.dark {
+  --primary: oklch(0.7 0.2 350);
+  --accent: oklch(0.6 0.15 10);
+}
+
+/* =============================================================================
+   3. GRADIENT PRESETS
+   Usage: className="bg-gradient-primary" or "bg-gradient-sunset"
+   ============================================================================= */
+
+@layer utilities {
+  /* Primary gradients - follow theme */
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+  }
+  .bg-gradient-primary-reverse {
+    background: linear-gradient(135deg, var(--accent), var(--primary));
+  }
+  
+  /* Fixed color gradients */
+  .bg-gradient-ocean {
+    background: linear-gradient(135deg, oklch(0.5 0.2 250), oklch(0.6 0.18 200));
+  }
+  .bg-gradient-sunset {
+    background: linear-gradient(135deg, oklch(0.65 0.25 30), oklch(0.7 0.2 50));
+  }
+  .bg-gradient-forest {
+    background: linear-gradient(135deg, oklch(0.5 0.15 145), oklch(0.6 0.12 160));
+  }
+  .bg-gradient-violet {
+    background: linear-gradient(135deg, oklch(0.5 0.25 290), oklch(0.6 0.2 320));
+  }
+  .bg-gradient-rose {
+    background: linear-gradient(135deg, oklch(0.6 0.2 350), oklch(0.7 0.15 10));
+  }
+  .bg-gradient-midnight {
+    background: linear-gradient(135deg, oklch(0.2 0.1 270), oklch(0.15 0.05 250));
+  }
+  .bg-gradient-aurora {
+    background: linear-gradient(135deg, oklch(0.6 0.2 160), oklch(0.5 0.25 290));
+  }
+  
+  /* Glass/Blur effects */
+  .bg-glass {
+    background: oklch(1 0 0 / 10%);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 20%);
+  }
+  .bg-glass-dark {
+    background: oklch(0 0 0 / 20%);
+    backdrop-filter: blur(12px);
+    border: 1px solid oklch(1 0 0 / 10%);
+  }
+  
+  /* Gradient text */
+  .text-gradient-primary {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-ocean {
+    background: linear-gradient(135deg, oklch(0.6 0.2 250), oklch(0.7 0.18 200));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-sunset {
+    background: linear-gradient(135deg, oklch(0.7 0.25 30), oklch(0.75 0.2 50));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* =============================================================================
+   4. ANIMATION CLASSES
+   Usage: className="animate-fade-in" or "animate-slide-up"
+   ============================================================================= */
+
+@layer utilities {
+  /* Fade animations */
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+  .animate-fade-out {
+    animation: fade-out 0.3s ease-out forwards;
+  }
+  
+  /* Slide animations */
+  .animate-slide-up {
+    animation: slide-up 0.4s ease-out forwards;
+  }
+  .animate-slide-down {
+    animation: slide-down 0.4s ease-out forwards;
+  }
+  .animate-slide-left {
+    animation: slide-left 0.4s ease-out forwards;
+  }
+  .animate-slide-right {
+    animation: slide-right 0.4s ease-out forwards;
+  }
+  
+  /* Scale animations */
+  .animate-scale-in {
+    animation: scale-in 0.3s ease-out forwards;
+  }
+  .animate-scale-out {
+    animation: scale-out 0.3s ease-out forwards;
+  }
+  
+  /* Bounce/Spring */
+  .animate-bounce-in {
+    animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  }
+  
+  /* Float (for decorative elements) */
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  /* Pulse glow (for CTAs) */
+  .animate-pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+  
+  /* Shimmer (for loading states) */
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 10%), transparent);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+
+  /* Spin slow (for decorative elements) */
+  .animate-spin-slow {
+    animation: spin 8s linear infinite;
+  }
+}
+
+/* Keyframes */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-left {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes slide-right {
+  from { opacity: 0; transform: translateX(-20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes scale-out {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.9); }
+}
+@keyframes bounce-in {
+  0% { opacity: 0; transform: scale(0.3); }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--primary); }
+  50% { box-shadow: 0 0 20px 5px oklch(from var(--primary) l c h / 30%); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* =============================================================================
+   5. BASE STYLES
+   ============================================================================= */
 
 @layer base {
   * {

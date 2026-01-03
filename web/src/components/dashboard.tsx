@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import {
     Menu, Plus, ExternalLink, RefreshCw,
-    Loader2, Rocket, ArrowUp, Wand2
+    Loader2, Rocket, ArrowUp, Wand2, Brain
 } from "lucide-react"
 import { toast } from "sonner"
 import ReactMarkdown from 'react-markdown'
@@ -24,6 +24,7 @@ export function Dashboard() {
     const [input, setInput] = useState("")
     const scrollRef = useRef<HTMLDivElement>(null)
     const [iframeKey, setIframeKey] = useState(0)
+    const [isThinking, setIsThinking] = useState(false)
 
     // Fetch sessions on mount
     useEffect(() => {
@@ -99,6 +100,7 @@ export function Dashboard() {
             const decoder = new TextDecoder()
 
             chatStore.setStreaming(true)
+            setIsThinking(true) // Start thinking
             let hasAssistantMessage = false
 
             while (true) {
@@ -121,6 +123,7 @@ export function Dashboard() {
 
                             switch (data.type) {
                                 case "tool_start":
+                                    setIsThinking(false) // Stop thinking on first tool
                                     // Backend sends step object
                                     if (data.step) {
                                         useChatStore.setState(state => {
@@ -151,6 +154,7 @@ export function Dashboard() {
                                     break
 
                                 case "user_message":
+                                    setIsThinking(false) // Stop thinking on content
                                     useChatStore.setState(state => {
                                         const msgs = [...state.messages]
                                         const lastMsg = msgs[msgs.length - 1]
@@ -188,6 +192,7 @@ export function Dashboard() {
                                     break
 
                                 case "done":
+                                    setIsThinking(false)
                                     chatStore.setLoading(false)
                                     chatStore.setStreaming(false)
                                     break
@@ -202,6 +207,7 @@ export function Dashboard() {
         } catch (error) {
             console.error(error)
             toast.error("Failed to send message")
+            setIsThinking(false)
             chatStore.setLoading(false)
             chatStore.setStreaming(false)
         }
@@ -343,20 +349,27 @@ export function Dashboard() {
 
                                             {/* Persistent Steps - Tool boxes and Preview URL */}
                                             {msg.steps && msg.steps.length > 0 && (
-                                                <div className="mt-4 flex flex-col gap-2">
-                                                    {/* Tool steps as compact inline badges */}
+                                                <div className="mt-4 flex flex-col gap-3">
+                                                    {/* Tool steps as polished badges */}
                                                     <div className="flex flex-wrap gap-2">
-                                                        {msg.steps.filter(s => s.type === 'tool').map((step) => (
+                                                        {msg.steps.filter(s => s.type === 'tool').map((step, idx) => (
                                                             <div
                                                                 key={step.id}
-                                                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-zinc-800/60 border border-zinc-700/50 text-xs"
+                                                                className={cn(
+                                                                    "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-300",
+                                                                    "bg-zinc-800/80 backdrop-blur-sm border",
+                                                                    step.status === "running"
+                                                                        ? "border-blue-500/50 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                                                                        : "border-zinc-700/50"
+                                                                )}
+                                                                style={{ animationDelay: `${idx * 50}ms` }}
                                                             >
                                                                 {step.status === "running" ? (
-                                                                    <Loader2 className="h-3 w-3 animate-spin text-zinc-400" />
+                                                                    <Loader2 className="h-3 w-3 animate-spin text-blue-400" />
                                                                 ) : (
-                                                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]" />
                                                                 )}
-                                                                <span className="text-zinc-400 font-medium">{step.title}</span>
+                                                                <span className={step.status === "running" ? "text-blue-300" : "text-zinc-400"}>{step.title}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -386,6 +399,27 @@ export function Dashboard() {
                                     </div>
                                 ))}
                             </>
+                        )}
+
+                        {/* Thinking indicator */}
+                        {isThinking && (
+                            <div className="flex gap-3 p-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                <div className="mr-2 h-9 w-9 rounded-full bg-gradient-to-br from-purple-500 to-orange-500 flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-500/20">
+                                    <Brain className="h-5 w-5 text-white animate-pulse" />
+                                </div>
+                                <div className="flex items-center">
+                                    <div className="bg-zinc-800/80 backdrop-blur-sm border border-zinc-700/50 rounded-xl px-4 py-2">
+                                        <div className="flex items-center gap-2 text-zinc-400 text-sm">
+                                            <span>Thinking</span>
+                                            <span className="flex gap-1">
+                                                <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:0ms]"></span>
+                                                <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:150ms]"></span>
+                                                <span className="w-1 h-1 bg-zinc-500 rounded-full animate-bounce [animation-delay:300ms]"></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </div>
 

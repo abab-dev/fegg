@@ -88,8 +88,41 @@ class SandboxManager:
             sandbox_id=sandbox.sandbox_id,
         )
 
+        # Sync dynamic files from local template (no rebuild needed for these)
+        self._sync_dynamic_files(sandbox)
+
         self._sandboxes[user_id] = user_sandbox
         return user_sandbox
+    
+    def _sync_dynamic_files(self, sandbox) -> None:
+        """
+        Sync frequently-changed files from local template to sandbox.
+        This avoids needing to rebuild the E2B template for every CSS change.
+        
+        Only syncs files that:
+        1. Change often (design system, etc.)
+        2. Don't require reinstalls (not package.json)
+        """
+        import pathlib
+        
+        # Path to local template
+        template_dir = pathlib.Path(__file__).parent.parent.parent / "templates" / "react-vite-shadcn-ui"
+        
+        # Files to sync (relative to template root)
+        dynamic_files = [
+            "src/styles/globals.css",  # Design system - changes often
+        ]
+        
+        for rel_path in dynamic_files:
+            local_path = template_dir / rel_path
+            if local_path.exists():
+                try:
+                    content = local_path.read_text()
+                    remote_path = f"/home/user/workspace/{rel_path}"
+                    sandbox.files.write(remote_path, content)
+                except Exception as e:
+                    # Non-fatal - sandbox still works with baked version
+                    print(f"Warning: Could not sync {rel_path}: {e}")
     
     def destroy(self, user_id: str) -> bool:
         """Destroy sandbox for user."""

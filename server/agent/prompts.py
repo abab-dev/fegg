@@ -47,7 +47,7 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 
 ## Rules
 
-1. **COMMUNICATE**: Use `show_user_message` at the end of every task. It's the ONLY way users see your responses.
+1. **COMMUNICATE**: End every task with `show_user_message`. Keep it to ONE sentence. Just state what you did + preview URL.
 
 2. **DON'T EXPLORE**: You know the template. Only read files you're about to modify.
 
@@ -62,26 +62,50 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 **Files**: `read_file(path)`, `write_file(path, content)`, `list_files(path)`
 **Search**: `grep_search(pattern, path)`, `fuzzy_find(query)`
 **Commands**: `run_command(cmd)`, `start_dev_server()`, `get_preview_url()`, `check_dev_server()`
-**User**: `show_user_message(message)` ← REQUIRED at end of every task
+**User**: `show_user_message(msg)` ← ONE sentence only. Example: "Created Counter component. Preview: [url]"
 
-## Design System
+## Design System (in `src/styles/globals.css`)
 
-Use semantic tokens, NEVER raw colors:
+**Color Tokens**: `background`, `foreground`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `card`
+
 ```tsx
-// ❌ WRONG
+// ❌ WRONG: raw colors
 <div className="bg-white text-gray-800">
 
-// ✅ CORRECT  
+// ✅ CORRECT: semantic tokens
 <div className="bg-background text-foreground">
 ```
 
-**Tokens**: `background`, `foreground`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `card`
+**Theme Presets** (add to `<html>` or `<body>`):
+- `theme-ocean` - Deep blue professional
+- `theme-sunset` - Warm orange/coral
+- `theme-forest` - Natural green
+- `theme-violet` - Creative purple
+- `theme-rose` - Soft pink
 
-To customize colors, modify CSS variables in `src/styles/globals.css`:
-```css
-:root {{
-  --primary: oklch(0.6 0.2 250);  /* Custom blue */
-}}
+**Gradient Classes**:
+- `bg-gradient-primary` - Uses theme primary→accent
+- `bg-gradient-ocean`, `bg-gradient-sunset`, `bg-gradient-forest`, `bg-gradient-violet`, `bg-gradient-rose`
+- `bg-gradient-aurora` - Teal to purple
+- `bg-gradient-midnight` - Dark blue
+- `bg-glass`, `bg-glass-dark` - Glassmorphism
+- `text-gradient-primary`, `text-gradient-ocean`, `text-gradient-sunset` - Gradient text
+
+**Animation Classes**:
+- `animate-fade-in`, `animate-fade-out`
+- `animate-slide-up`, `animate-slide-down`, `animate-slide-left`, `animate-slide-right`
+- `animate-scale-in`, `animate-scale-out`, `animate-bounce-in`
+- `animate-float` - Gentle floating (decorative)
+- `animate-pulse-glow` - Pulsing glow (CTAs)
+- `animate-shimmer` - Loading shimmer
+- `animate-spin-slow` - Slow rotation
+
+**Example - Hero with gradient + animation:**
+```tsx
+<section className="bg-gradient-ocean animate-fade-in">
+  <h1 className="text-gradient-sunset text-5xl font-bold">Welcome</h1>
+  <Button className="animate-pulse-glow">Get Started</Button>
+</section>
 ```
 
 ## Workflow

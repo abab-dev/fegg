@@ -1,14 +1,16 @@
-# E2B Template Configuration
-# https://e2b.dev/docs/sandbox-template
+# This is a config for E2B sandbox template.
+# You can use template ID (599n6agqtub6wrffkd5y) or template name (react-vite-shadcn-ui) to create a sandbox:
 
-# Unique template ID (will be assigned by e2b)
-template_id = "react-vite-shadcn"
+# Python SDK
+# from e2b import Sandbox, AsyncSandbox
+# sandbox = Sandbox.create("react-vite-shadcn-ui") # Sync sandbox
+# sandbox = await AsyncSandbox.create("react-vite-shadcn-ui") # Async sandbox
 
-# Dockerfile to use for building the template
+# JS SDK
+# import { Sandbox } from 'e2b'
+# const sandbox = await Sandbox.create('react-vite-shadcn-ui')
+
+team_id = "d5a86ab3-c8f9-45dd-9929-2e789a1143db"
 dockerfile = "e2b.Dockerfile"
-
-# Template name
-template_name = "React Vite Shadcn UI"
-
-# Start command (optional)
-# start_cmd = "cd /home/user/workspace && bun run dev"
+template_name = "react-vite-shadcn-ui"
+template_id = "599n6agqtub6wrffkd5y"
