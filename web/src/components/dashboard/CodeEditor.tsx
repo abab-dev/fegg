@@ -263,7 +263,6 @@ export function CodeEditor({
                             height="100%"
                             language={getLanguage(activeFile)}
                             value={fileContents[activeFile]}
-                            onChange={(value) => onContentChange(activeFile, value || '')}
                             theme="vs-dark"
                             options={{
                                 fontSize: 13,
@@ -273,6 +272,9 @@ export function CodeEditor({
                                 smoothScrolling: true,
                                 cursorBlinking: 'smooth',
                                 padding: { top: 16 },
+                                readOnly: true,
+                                domReadOnly: true,
+                                scrollBeyondLastLine: false,
                             }}
                         />
                     ) : (

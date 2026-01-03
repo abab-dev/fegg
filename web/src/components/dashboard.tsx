@@ -106,7 +106,7 @@ export function Dashboard() {
     }
 
     function updateFileContent(path: string, content: string) {
-        setFileContents(prev => ({ ...prev, [path]: content }))
+        // View-only mode - no saving
     }
 
     // Session operations
