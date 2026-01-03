@@ -151,13 +151,14 @@
   }
 }
 
-/* Custom Scrollbar - Beautiful Modern Style */
+/* Hover-Expanding Overlay Scrollbar (macOS-style) */
 @layer utilities {
 
   /* Webkit browsers (Chrome, Safari, Edge) */
   .scrollbar-thin::-webkit-scrollbar {
-    width: 8px;
-    height: 8px;
+    width: 4px;
+    height: 4px;
+    transition: width 150ms ease, height 150ms ease;
   }
 
   .scrollbar-thin::-webkit-scrollbar-track {
@@ -165,29 +166,33 @@
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb {
-    background: rgb(63 63 70 / 0.3);
-    border-radius: 10px;
-    border: 2px solid transparent;
-    background-clip: padding-box;
-    transition: all 0.2s ease;
+    background-color: rgb(63 63 70 / 0.35);
+    border-radius: 9999px;
+    transition: background-color 150ms ease;
   }
 
+  /* Hover over scroll area - expand scrollbar */
+  .scrollbar-thin:hover::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  /* Hover over scrollbar thumb - darken for better visibility */
   .scrollbar-thin:hover::-webkit-scrollbar-thumb {
-    background: rgb(82 82 91 / 0.7);
-    border: 0px solid transparent;
+    background-color: rgb(82 82 91 / 0.55);
   }
 
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background: rgb(82 82 91);
+    background-color: rgb(82 82 91 / 0.75);
   }
 
-  /* Firefox */
+  /* Firefox (limited support) */
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: rgb(63 63 70 / 0.3) transparent;
+    scrollbar-color: rgb(63 63 70 / 0.35) transparent;
   }
 
   .scrollbar-thin:hover {
-    scrollbar-color: rgb(82 82 91 / 0.7) transparent;
+    scrollbar-color: rgb(82 82 91 / 0.55) transparent;
   }
 }
