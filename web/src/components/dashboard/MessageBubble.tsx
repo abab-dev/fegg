@@ -32,9 +32,6 @@ export function MessageBubble({ role, content, steps = [] }: MessageBubbleProps)
 
     return (
         <div className="flex gap-3 max-w-[90%]">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-800 flex-shrink-0 flex items-center justify-center">
-                <div className="h-4 w-4 rounded bg-gradient-to-br from-orange-500 to-purple-500" />
-            </div>
             <div className="flex-1 min-w-0">
                 <ToolSteps steps={steps} />
                 {content && (

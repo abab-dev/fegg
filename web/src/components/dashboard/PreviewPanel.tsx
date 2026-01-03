@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { RefreshCw, ExternalLink, Eye, Code, ChevronUp, Loader2 } from "lucide-react"
+import { RefreshCw, ExternalLink, Eye, Code, Loader2 } from "lucide-react"
 import { CodeEditor } from "./CodeEditor"
 
 interface PreviewPanelProps {
@@ -43,81 +43,64 @@ export function PreviewPanel({
     return (
         <div className="hidden md:flex flex-col flex-1 bg-[#0a0a0b]">
             {/* v0-style Top Bar */}
-            <div className="h-10 border-b border-zinc-800 bg-[#0c0c0e] flex items-center px-2 gap-2">
-                {/* Left: Back + Toggle */}
-                <div className="flex items-center gap-1">
-                    <button className="p-1.5 rounded text-zinc-500 hover:text-white hover:bg-zinc-800 transition-colors">
-                        <ChevronUp className="h-4 w-4 -rotate-90" />
+            <div className="h-12 border-b border-zinc-800 bg-[#0c0c0e] flex items-center px-4 gap-4 justify-between">
+                {/* Left: Toggle */}
+                <div className="flex items-center bg-zinc-900 rounded-lg p-1 border border-zinc-800">
+                    <button
+                        onClick={() => onPanelChange('preview')}
+                        className={cn(
+                            "px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2",
+                            rightPanel === 'preview'
+                                ? "bg-zinc-800 text-white shadow-sm"
+                                : "text-zinc-500 hover:text-zinc-300"
+                        )}
+                    >
+                        <Eye className="h-3.5 w-3.5" />
+                        Preview
                     </button>
-                    <div className="flex items-center bg-zinc-800 rounded-md p-0.5">
-                        <button
-                            onClick={() => onPanelChange('preview')}
-                            className={cn(
-                                "p-1.5 rounded transition-all",
-                                rightPanel === 'preview'
-                                    ? "bg-zinc-700 text-white"
-                                    : "text-zinc-500 hover:text-zinc-300"
-                            )}
-                            title="Preview"
-                        >
-                            <Eye className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                            onClick={() => {
-                                onPanelChange('code')
-                                if (fileTree.length === 0) onLoadFileTree()
-                            }}
-                            className={cn(
-                                "p-1.5 rounded transition-all",
-                                rightPanel === 'code'
-                                    ? "bg-zinc-700 text-white"
-                                    : "text-zinc-500 hover:text-zinc-300"
-                            )}
-                            title="Code"
-                        >
-                            <Code className="h-3.5 w-3.5" />
-                        </button>
-                    </div>
+                    <button
+                        onClick={() => {
+                            onPanelChange('code')
+                            if (fileTree.length === 0) onLoadFileTree()
+                        }}
+                        className={cn(
+                            "px-3 py-1.5 rounded-md text-xs font-medium transition-all flex items-center gap-2",
+                            rightPanel === 'code'
+                                ? "bg-zinc-800 text-white shadow-sm"
+                                : "text-zinc-500 hover:text-zinc-300"
+                        )}
+                    >
+                        <Code className="h-3.5 w-3.5" />
+                        Code
+                    </button>
                 </div>
 
-                {/* Center: URL Bar */}
-                <div className="flex-1 flex justify-center">
-                    <div className="flex items-center gap-1 bg-zinc-800/60 rounded-lg px-2 py-1">
-                        <button className="p-1 rounded text-zinc-500 hover:text-white transition-colors">
-                            <ChevronUp className="h-3.5 w-3.5 -rotate-90" />
-                        </button>
-                        <button className="p-1 rounded text-zinc-500 hover:text-white transition-colors">
-                            <ChevronUp className="h-3.5 w-3.5 rotate-90" />
-                        </button>
-                        <button className="p-1 rounded text-zinc-400 hover:text-white transition-colors" title="Desktop">
-                            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <rect x="2" y="3" width="20" height="14" rx="2" />
-                                <line x1="8" y1="21" x2="16" y2="21" />
-                                <line x1="12" y1="17" x2="12" y2="21" />
-                            </svg>
-                        </button>
-                        <span className="text-zinc-600 text-sm">/</span>
+                {/* Center: Browser Bar */}
+                {rightPanel === 'preview' && (
+                    <div className="flex-1 max-w-xl">
+                        <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-zinc-400">
+                            <div className="h-2 w-2 rounded-full bg-emerald-500/50" />
+                            <span className="flex-1 text-center font-mono">localhost:5173</span>
+                            <button
+                                onClick={onRefresh}
+                                disabled={!previewUrl}
+                                className="hover:text-white transition-colors p-1"
+                            >
+                                <RefreshCw className="h-3 w-3" />
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Right: Actions */}
-                <div className="flex items-center gap-0.5">
-                    {previewUrl && (
-                        <Button variant="ghost" size="sm" className="h-7 w-7 text-zinc-500 hover:text-white hover:bg-zinc-800" asChild>
+                <div className="flex items-center gap-2">
+                    {previewUrl && rightPanel === 'preview' && (
+                        <Button variant="ghost" size="sm" className="h-8 w-8 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded-lg" asChild>
                             <a href={previewUrl} target="_blank" rel="noopener noreferrer">
-                                <ExternalLink className="h-3.5 w-3.5" />
+                                <ExternalLink className="h-4 w-4" />
                             </a>
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 text-zinc-500 hover:text-white hover:bg-zinc-800"
-                        onClick={onRefresh}
-                        disabled={!previewUrl}
-                    >
-                        <RefreshCw className="h-3.5 w-3.5" />
-                    </Button>
                 </div>
             </div>
 
