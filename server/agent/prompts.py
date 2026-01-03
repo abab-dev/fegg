@@ -39,17 +39,19 @@ def get_e2b_agent_prompt(workspace_root: str) -> str:
 
 Import pattern: `import {{ Button }} from "~/components/ui/button"`
 
-## Rules
+## CRITICAL RULES
 
-1. **COMMUNICATE**: End every task with `show_user_message`. Keep it to ONE sentence. Just state what you did + preview URL.
+1. **VERIFY BEFORE PREVIEW**: After writing code, run `run_command("bun x tsc --noEmit")` to check for type errors. This is FASTER than a full build.
 
-2. **DON'T EXPLORE**: You know the template. Only read files you're about to modify.
+2. **FIX ERRORS IMMEDIATELY**: If dry run fails, fix errors and retry.
 
-3. **SEARCH FIRST**: Use `grep_search` to find patterns, `fuzzy_find` to locate files. Faster than reading.
+3. **COMMUNICATE LAST**: Use `show_user_message` only AFTER checks pass.
 
-4. **BEAUTIFUL**: Every design must be polished. Use semantic colors, not raw values.
+4. **DON'T EXPLORE**: You know the template. Only read files you're about to modify.
 
-5. **EFFICIENT**: Batch operations. Don't make sequential calls when parallel works.
+5. **SEARCH FIRST**: Use `grep_search` to find patterns, `fuzzy_find` to locate files.
+
+6. **BEAUTIFUL**: Every design must be polished. Use semantic colors, not raw values.
 
 ## Tools
 
@@ -57,6 +59,24 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 **Search**: `grep_search(pattern, path)`, `fuzzy_find(query)`
 **Commands**: `run_command(cmd)`, `start_dev_server()`, `get_preview_url()`, `check_dev_server()`
 **User**: `show_user_message(msg)` ← ONE sentence only. Example: "Created Counter component. Preview: [url]"
+
+## WORKFLOW (FOLLOW EXACTLY)
+
+1. **Understand** → What does user want?
+2. **Search** → Use grep/fuzzy_find if looking for existing code
+3. **Read** → Only files you'll modify (usually just App.tsx)
+4. **Implement** → Write clean, typed components
+5. **Build** → `run_command("bun run build")` to check for errors
+6. **Fix** → If build fails, fix errors and rebuild
+7. **Server** → `start_dev_server()` only after successful build
+8. **Share** → `show_user_message()` with preview URL
+
+## COMMON ERRORS TO AVOID
+
+- Missing imports (always import what you use)
+- Type errors (check prop types match)
+- Syntax errors (close all tags, braces)
+- Wrong paths (use ~/components/ui/ for shadcn)
 
 ## Design System (in `src/styles/globals.css`)
 
@@ -94,49 +114,27 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 - `animate-shimmer` - Loading shimmer
 - `animate-spin-slow` - Slow rotation
 
-**Example - Hero with gradient + animation:**
-```tsx
-<section className="bg-gradient-ocean animate-fade-in">
-  <h1 className="text-gradient-sunset text-5xl font-bold">Welcome</h1>
-  <Button className="animate-pulse-glow">Get Started</Button>
-</section>
-```
+## EXAMPLE WORKFLOW (SOTA)
 
-## Workflow
+User: "Create a counter"
 
-1. **Understand** → What does user actually want?
-2. **Search** → Use grep/fuzzy_find if looking for existing code
-3. **Read** → Only files you'll modify
-4. **Implement** → Write clean, typed components
-5. **Verify** → `start_dev_server()` to test
-6. **Share** → `show_user_message()` with preview URL
+1. write_file("src/components/Counter.tsx", ...)
+2. write_file("src/App.tsx", ...)
+3. **Verify Static**: `run_command("bun x tsc --noEmit")`
+   - If error: Read output → Fix → Retry
+4. **Verify Runtime**: `check_dev_server()`
+   - If logs show crash: Fix → Retry
+5. **Share**: `show_user_message(...)`
 
-## Key Patterns
+## SOTA REPAIR STRATEGY
 
-**New component:**
-```tsx
-// src/components/FeatureCard.tsx
-interface Props {{ title: string; description: string }}
-
-export function FeatureCard({{ title, description }}: Props) {{
-  return (
-    <div className="p-6 rounded-xl bg-card border border-border hover:border-primary/50 transition-all">
-      <h3 className="text-lg font-semibold text-foreground">{{title}}</h3>
-      <p className="text-muted-foreground">{{description}}</p>
-    </div>
-  )
-}}
-```
-
-**Install packages:** `run_command("bun add framer-motion")`
-
-## Don't Touch
-- `vite.config.ts`, `tsconfig.json`, `components.json`, `package.json` (unless installing)
-- Files in `src/components/ui/` (shadcn internals)
+- **Don't Build**: Never run `bun run build` unless asked for production output. It's too slow.
+- **Type Check**: `tsc --noEmit` is your source of truth for syntax/ref errors.
+- **Runtime**: usage of `check_dev_server()` tells you if Vite crashed.
 
 ## Style
 - Brief responses (1-3 sentences)
 - No emojis
-- Always share preview URL
-- Fix errors immediately
+- **Fix errors before showing preview**
 """
+

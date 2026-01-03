@@ -107,3 +107,118 @@ async def delete_session(
     await db.commit()
     
     return {"status": "terminated"}
+
+
+# --- File API for Code Editor ---
+
+from ..services.agent_runner import get_user_sandbox
+
+
+@router.get("/{session_id}/files")
+async def list_files(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """List all files in the session's sandbox workspace."""
+    user_id = current_user["id"]
+    
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == user_id
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        sandbox = await get_user_sandbox(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="No active sandbox for this session")
+    
+    # Get file list from sandbox
+    try:
+        result = sandbox.sandbox.commands.run(
+            f"cd {sandbox.workspace_path} && find src -type f -name '*.tsx' -o -name '*.ts' -o -name '*.css' -o -name '*.json' 2>/dev/null | head -100",
+            timeout=10
+        )
+        files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+        return {"files": files}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to list files: {e}")
+
+
+@router.get("/{session_id}/files/{file_path:path}")
+async def get_file_content(
+    session_id: str,
+    file_path: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get the content of a specific file from the sandbox."""
+    user_id = current_user["id"]
+    
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == user_id
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        sandbox = await get_user_sandbox(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="No active sandbox for this session")
+    
+    try:
+        full_path = f"{sandbox.workspace_path}/{file_path}"
+        result = sandbox.sandbox.commands.run(f"cat '{full_path}'", timeout=10)
+        return {"path": file_path, "content": result.stdout}
+    except Exception as e:
+        raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
+
+
+from pydantic import BaseModel
+
+class FileUpdate(BaseModel):
+    content: str
+
+
+@router.put("/{session_id}/files/{file_path:path}")
+async def update_file_content(
+    session_id: str,
+    file_path: str,
+    body: FileUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update the content of a file in the sandbox."""
+    user_id = current_user["id"]
+    
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == user_id
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        sandbox = await get_user_sandbox(user_id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="No active sandbox for this session")
+    
+    try:
+        full_path = f"{sandbox.workspace_path}/{file_path}"
+        # Write content to file
+        sandbox.sandbox.files.write(full_path, body.content)
+        return {"status": "ok", "path": file_path}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write file: {e}")

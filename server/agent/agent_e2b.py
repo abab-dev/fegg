@@ -67,6 +67,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         path: str = Field(description="Path to file (relative to workspace)")
     
     def read_file(path: str) -> str:
+        """Read the contents of a file at the given path. Returns the file content as a string."""
         return tools.read_file(path)
     
     class WriteFileInput(BaseModel):
@@ -74,12 +75,14 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         content: str = Field(description="Content to write")
     
     def write_file(path: str, content: str) -> str:
+        """Write content to a file. Creates the file if it doesn't exist, overwrites if it does."""
         return tools.write_file(path, content)
     
     class ListFilesInput(BaseModel):
         path: str = Field(default=".", description="Directory to list")
     
     def list_files(path: str = ".") -> str:
+        """List all files and directories in the given path. Returns a newline-separated list."""
         return tools.list_dir(path)
     
     class GrepInput(BaseModel):
@@ -87,12 +90,14 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         path: str = Field(default=".", description="Path to search in")
     
     def grep_search(pattern: str, path: str = ".") -> str:
+        """Search for a pattern in files. Returns matching lines with context."""
         return tools.grep(pattern, path)
     
     class FuzzyFindInput(BaseModel):
         query: str = Field(description="Partial filename to search for")
     
     def fuzzy_find(query: str) -> str:
+        """Find files by partial name match. Returns a list of matching file paths with scores."""
         return tools.fuzzy_find(query)
 
     class RunCommandInput(BaseModel):
@@ -114,7 +119,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         command: str = Field(default="bun run dev", description="Dev server command")
     
     def start_dev_server(command: str = "bun run dev") -> str:
-        """Start dev server in background. Returns preview URL when ready."""
+        """Start the development server in background. Returns the preview URL when ready."""
         try:
             sandbox.sandbox.commands.run("pkill -f 'vite' 2>/dev/null; exit 0", timeout=5)
         except:
@@ -160,6 +165,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             return f"Dev server started but couldn't get URL: {e}"
 
     def get_preview_url() -> str:
+        """Get the current preview URL for the running dev server."""
         if sandbox.preview_url:
             return sandbox.preview_url
         try:
@@ -171,6 +177,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             return "No preview URL available. Start dev server first."
 
     def check_dev_server() -> str:
+        """Check the status of the dev server. Returns health status and recent logs."""
         result = sandbox.sandbox.commands.run(
             "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
             timeout=5
@@ -191,7 +198,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         message: str = Field(description="Message to show to the user")
     
     def show_user_message(message: str) -> str:
-        """Send a message to the user. ONLY way to communicate - use at end of work."""
+        """Send a message to the user. This is the ONLY way to communicate with the user - use at the end of your work."""
         return message
 
     wrapped = [

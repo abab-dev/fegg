@@ -169,27 +169,31 @@ class FSTools:
             return f"Search error: {e}"
 
     def _get_all_files(self, path: str = ".") -> List[str]:
-        result = []
-        
-        def walk(current_path: str):
-            try:
-                items = self._backend.list_dir(current_path)
-                for item in items:
-                    if item in self.DEFAULT_IGNORE:
-                        continue
-                    
-                    full_path = f"{current_path}/{item}".replace("./", "")
-                    
-                    sub_items = self._backend.list_dir(full_path)
-                    if sub_items:  # It's a directory
-                        walk(full_path)
-                    else:
-                        result.append(full_path)
-            except:
-                pass
-
-        walk(path)
-        return result
+        # Use find command via backend to get file list efficiently
+        # Exclude node_modules, .git, and other heavy folders
+        cmd = (
+            f"find . -type f "
+            f"-not -path '*/node_modules/*' "
+            f"-not -path '*/.git/*' "
+            f"-not -path '*/dist/*' "
+            f"-not -path '*/build/*' "
+            f"-not -path '*/.cache/*' "
+            f"| head -n 1000"
+        )
+        try:
+            result = self._backend.run_command(cmd, timeout=10)
+            if not result.success:
+                return []
+            
+            files = [
+                f.strip().replace("./", "") 
+                for f in result.stdout.splitlines() 
+                if f.strip()
+            ]
+            return files
+        except Exception:
+            # Fallback to simple walk if command fails (unlikely)
+            return []
 
     def run(self, command: str, timeout: int = 30) -> str:
         result = self._backend.run_command(command, timeout=timeout)

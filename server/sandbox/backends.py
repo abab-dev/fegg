@@ -211,7 +211,10 @@ class E2BBackend:
     ) -> str:
         full_path = self._resolve(path)
 
-        cmd = f'grep -rn -C {context_lines} "{pattern}" "{full_path}" 2>/dev/null || echo "No matches found"'
+        # Exclude common heavy directories
+        excludes = "--exclude-dir={node_modules,.git,dist,build,.next,.cache}"
+        
+        cmd = f'grep -rn {excludes} -C {context_lines} "{pattern}" "{full_path}" 2>/dev/null || echo "No matches found"'
         result = self.run_command(cmd, timeout=15, cwd="/")
 
         return result.stdout
