@@ -127,13 +127,13 @@ export function PreviewPanel({
                     ) : (
                         <div className="flex flex-col items-center justify-center h-full text-zinc-600 bg-[#0c0c0e]">
                             {isLoading ? (
-                                <div className="text-center">
-                                    <div className="relative mb-6">
+                                <div className="flex flex-col text-center">
+                                    <div className="relative mb-6 mx-auto">
                                         <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-orange-500/10 to-purple-500/10 flex items-center justify-center">
                                             <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
                                         </div>
                                     </div>
-                                    <p className="text-sm text-zinc-500">Building your app...</p>
+                                    <div className="text-sm text-zinc-500">Building your app...</div>
                                 </div>
                             ) : (
                                 <div className="text-center">
