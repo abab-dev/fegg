@@ -79,12 +79,15 @@ export function PreviewPanel({
                 {rightPanel === 'preview' && (
                     <div className="flex-1 max-w-xl">
                         <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-zinc-400">
-                            <div className="h-2 w-2 rounded-full bg-emerald-500/50" />
-                            <span className="flex-1 text-center font-mono">localhost:5173</span>
+                            <div className={cn("h-2 w-2 rounded-full", previewUrl ? "bg-emerald-500" : "bg-orange-500/50")} />
+                            <span className="flex-1 text-center font-mono truncate px-2">
+                                {previewUrl ? new URL(previewUrl).host : 'Connecting...'}
+                            </span>
                             <button
                                 onClick={onRefresh}
                                 disabled={!previewUrl}
                                 className="hover:text-white transition-colors p-1"
+                                title="Refresh Preview"
                             >
                                 <RefreshCw className="h-3 w-3" />
                             </button>

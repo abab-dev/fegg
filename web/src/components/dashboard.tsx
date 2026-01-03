@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/auth"
 import { useChatStore, Message } from "@/store/chat"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
 
 import { Header } from "./dashboard/Header"
 import { ProjectsSheet } from "./dashboard/ProjectsSheet"
@@ -282,7 +283,7 @@ export function Dashboard() {
             />
 
             {/* Main Content */}
-            <main className="flex flex-1 pt-12">
+            <main className="flex flex-1 pt-12 overflow-hidden">
                 <ChatPanel
                     messages={chatStore.messages}
                     input={input}

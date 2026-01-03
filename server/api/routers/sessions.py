@@ -138,13 +138,21 @@ async def list_files(
     except ValueError:
         raise HTTPException(status_code=404, detail="No active sandbox for this session")
     
-    # Get file list from sandbox
+    # Get file list from sandbox using tree command (more reliable)
     try:
+        # Use find with simpler syntax that works
         result = sandbox.sandbox.commands.run(
-            f"cd {sandbox.workspace_path} && find src -type f -name '*.tsx' -o -name '*.ts' -o -name '*.css' -o -name '*.json' 2>/dev/null | head -100",
-            timeout=10
+            f"find {sandbox.workspace_path} -type f 2>/dev/null | "
+            f"grep -v node_modules | grep -v '.git/' | grep -v '/dist/' | "
+            f"sed 's|{sandbox.workspace_path}/||' | sort",
+            timeout=15
         )
-        files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip()]
+        files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip() and not f.startswith('.')]
+        
+        # Filter out system files
+        exclude = {'bun.lock', 'package-lock.json', 'LICENSE', '.gitignore', 'e2b.toml'}
+        files = [f for f in files if f.split('/')[-1] not in exclude and not f.endswith('.Dockerfile')]
+        
         return {"files": files}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to list files: {e}")

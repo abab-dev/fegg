@@ -35,7 +35,7 @@ export function ChatPanel({
     onSend,
 }: ChatPanelProps) {
     return (
-        <div className="w-full md:w-[35%] flex flex-col bg-gradient-to-b from-[#0c0c0e] to-[#09090b] border-r border-zinc-800/50">
+        <div className="w-full md:w-[480px] flex-shrink-0 flex flex-col bg-gradient-to-b from-[#0c0c0e] to-[#09090b] border-r border-zinc-800/50">
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-thin">
                 {messages.length === 0 ? (
