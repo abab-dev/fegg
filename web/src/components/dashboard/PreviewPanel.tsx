@@ -57,6 +57,12 @@ export function PreviewPanel({
                     >
                         <Eye className="h-3.5 w-3.5" />
                         Preview
+                        {previewUrl && (
+                            <span className="flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Live
+                            </span>
+                        )}
                     </button>
                     <button
                         onClick={() => {

@@ -32,7 +32,33 @@ def clear_session_cache(session_id: str) -> None:
 
 
 async def create_sandbox_for_session(session_id: str, user_id: str) -> tuple[str, str]:
+    import time
+    
     user_sandbox = _sandbox_manager.create(user_id)
+
+    # Auto-start dev server so HMR works immediately
+    try:
+        user_sandbox.sandbox.commands.run(
+            f"cd {user_sandbox.workspace_path} && bun run dev",
+            background=True
+        )
+        user_sandbox.dev_server_running = True
+        
+        # Wait for dev server to be ready (max 15 seconds)
+        for _ in range(15):
+            time.sleep(1)
+            try:
+                result = user_sandbox.sandbox.commands.run(
+                    "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
+                    timeout=3
+                )
+                if result.stdout.strip() == "200":
+                    break
+            except:
+                pass
+                
+    except Exception as e:
+        print(f"Warning: Could not auto-start dev server: {e}")
 
     preview_url = _sandbox_manager.get_preview_url(user_id, port=5173)
 

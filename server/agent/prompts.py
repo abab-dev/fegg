@@ -58,7 +58,12 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 **Files**: `read_file(path)`, `write_file(path, content)`, `list_files(path)`
 **Search**: `grep_search(pattern, path)`, `fuzzy_find(query)`
 **Commands**: `run_command(cmd)`, `start_dev_server()`, `get_preview_url()`, `check_dev_server()`
-**User**: `show_user_message(msg)` ← ONE sentence only. Example: "Created Counter component. Preview: [url]"
+**User**: `show_user_message(message)` ← Use this to reply to the user. Keep it brief (1 sentence).
+
+Example tool call:
+```
+show_user_message(message="Done! Counter component created.")
+```
 
 ## WORKFLOW (FOLLOW EXACTLY)
 
@@ -66,10 +71,11 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 2. **Search** → Use grep/fuzzy_find if looking for existing code
 3. **Read** → Only files you'll modify (usually just App.tsx)
 4. **Implement** → Write clean, typed components
-5. **Build** → `run_command("bun run build")` to check for errors
-6. **Fix** → If build fails, fix errors and rebuild
-7. **Server** → `start_dev_server()` only after successful build
-8. **Share** → `show_user_message()` with preview URL
+5. **Verify** → `run_command("bun x tsc --noEmit")` to check for type errors
+6. **Fix** → If errors, fix and re-verify
+7. **Share** → `show_user_message()` confirming completion
+
+**NOTE**: Dev server is ALREADY running with HMR. Just save files and the preview auto-updates. Do NOT call `start_dev_server()` unless the server crashed.
 
 ## COMMON ERRORS TO AVOID
 

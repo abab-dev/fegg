@@ -104,12 +104,17 @@ async def stream_events(
                             session.preview_url = preview_url
                         await db2.commit()
                     
+                    # Send preview URL immediately so frontend can show HMR preview
+                    if preview_url:
+                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
+                        preview_emitted = True
+                    
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
 
-            preview_emitted = False
+            preview_emitted = preview_emitted if needs_sandbox else False
             tool_step_map = {}
 
             async for event in stream_agent_events(user_id, session_id, message):

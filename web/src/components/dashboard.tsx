@@ -56,6 +56,13 @@ export function Dashboard() {
         }
     }, [chatStore.messages, isThinking])
 
+    // Auto-refresh preview when URL changes
+    useEffect(() => {
+        if (chatStore.currentPreviewUrl) {
+            setIframeKey(prev => prev + 1)
+        }
+    }, [chatStore.currentPreviewUrl])
+
     // File operations
     async function loadFileTree() {
         if (!chatStore.currentSessionId) return
@@ -255,6 +262,8 @@ export function Dashboard() {
                                     setIsThinking(false)
                                     chatStore.setLoading(false)
                                     chatStore.setStreaming(false)
+                                    // Refresh preview to show final result
+                                    setIframeKey(prev => prev + 1)
                                     break
                             }
                         } catch (e) {
