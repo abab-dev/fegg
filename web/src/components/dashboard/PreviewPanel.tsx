@@ -41,7 +41,7 @@ export function PreviewPanel({
     onContentChange,
 }: PreviewPanelProps) {
     return (
-        <div className="hidden md:flex flex-col flex-1 bg-[#0a0a0b]">
+        <div className="h-full w-full flex flex-col bg-[#0a0a0b]">
             {/* v0-style Top Bar */}
             <div className="h-12 border-b border-zinc-800 bg-[#0c0c0e] flex items-center px-4 gap-4 justify-between">
                 {/* Left: Toggle */}

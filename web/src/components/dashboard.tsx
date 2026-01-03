@@ -5,7 +5,11 @@ import { useAuthStore } from "@/store/auth"
 import { useChatStore, Message } from "@/store/chat"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable"
+import {
+    ResizableHandle,
+    ResizablePanel,
+    ResizablePanelGroup,
+} from "@/components/ui/resizable"
 
 import { Header } from "./dashboard/Header"
 import { ProjectsSheet } from "./dashboard/ProjectsSheet"
@@ -55,11 +59,21 @@ export function Dashboard() {
     // File operations
     async function loadFileTree() {
         if (!chatStore.currentSessionId) return
+        setIsLoadingFile(true)
         try {
             const res = await api.get(`sessions/${chatStore.currentSessionId}/files`).json<{ files: string[] }>()
-            setFileTree(res.files || [])
-        } catch (error) {
-            setFileTree(['src/App.tsx', 'src/main.tsx', 'src/styles/globals.css'])
+            const files = res.files || []
+            setFileTree(files)
+            if (files.length === 0) {
+                toast.info("No files in project yet. Ask the AI to create something!")
+            }
+        } catch (error: any) {
+            console.error("Failed to load file tree:", error)
+            const msg = error?.message || "Unknown error"
+            toast.error(`Failed to load files: ${msg}`)
+            setFileTree([])
+        } finally {
+            setIsLoadingFile(false)
         }
     }
 
@@ -283,35 +297,43 @@ export function Dashboard() {
             />
 
             {/* Main Content */}
-            <main className="flex flex-1 pt-12 overflow-hidden">
-                <ChatPanel
-                    messages={chatStore.messages}
-                    input={input}
-                    isLoading={chatStore.isLoading}
-                    isThinking={isThinking}
-                    hasSession={!!chatStore.currentSessionId}
-                    scrollRef={scrollRef as any}
-                    onInputChange={setInput}
-                    onSend={sendMessage}
-                />
+            <main className="flex flex-1 pt-12 overflow-hidden h-full">
+                <ResizablePanelGroup direction="horizontal" className="h-full w-full">
+                    <ResizablePanel defaultSize={35} minSize={20}>
+                        <ChatPanel
+                            messages={chatStore.messages}
+                            input={input}
+                            isLoading={chatStore.isLoading}
+                            isThinking={isThinking}
+                            hasSession={!!chatStore.currentSessionId}
+                            scrollRef={scrollRef as any}
+                            onInputChange={setInput}
+                            onSend={sendMessage}
+                        />
+                    </ResizablePanel>
 
-                <PreviewPanel
-                    rightPanel={rightPanel}
-                    previewUrl={chatStore.currentPreviewUrl}
-                    iframeKey={iframeKey}
-                    isLoading={chatStore.isLoading}
-                    fileTree={fileTree}
-                    openFiles={openFiles}
-                    activeFile={activeFile}
-                    fileContents={fileContents}
-                    isLoadingFile={isLoadingFile}
-                    onPanelChange={setRightPanel}
-                    onRefresh={() => setIframeKey(prev => prev + 1)}
-                    onLoadFileTree={loadFileTree}
-                    onFileSelect={loadFile}
-                    onFileClose={closeFile}
-                    onContentChange={updateFileContent}
-                />
+                    <ResizableHandle withHandle />
+
+                    <ResizablePanel defaultSize={65} minSize={30}>
+                        <PreviewPanel
+                            rightPanel={rightPanel}
+                            previewUrl={chatStore.currentPreviewUrl}
+                            iframeKey={iframeKey}
+                            isLoading={chatStore.isLoading}
+                            fileTree={fileTree}
+                            openFiles={openFiles}
+                            activeFile={activeFile}
+                            fileContents={fileContents}
+                            isLoadingFile={isLoadingFile}
+                            onPanelChange={setRightPanel}
+                            onRefresh={() => setIframeKey(prev => prev + 1)}
+                            onLoadFileTree={loadFileTree}
+                            onFileSelect={loadFile}
+                            onFileClose={closeFile}
+                            onContentChange={updateFileContent}
+                        />
+                    </ResizablePanel>
+                </ResizablePanelGroup>
             </main>
         </div>
     )

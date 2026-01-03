@@ -122,7 +122,7 @@ async def list_files(
 ):
     """List all files in the session's sandbox workspace."""
     user_id = current_user["id"]
-    
+
     result = await db.execute(
         select(Session).where(
             Session.id == session_id,
@@ -132,12 +132,13 @@ async def list_files(
     session = result.scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
+
     try:
         sandbox = await get_user_sandbox(user_id)
     except ValueError:
-        raise HTTPException(status_code=404, detail="No active sandbox for this session")
-    
+        # Sandbox hasn't been created yet - return empty list
+        return {"files": []}
+
     # Get file list from sandbox using tree command (more reliable)
     try:
         # Use find with simpler syntax that works
@@ -148,14 +149,17 @@ async def list_files(
             timeout=15
         )
         files = [f.strip() for f in result.stdout.strip().split('\n') if f.strip() and not f.startswith('.')]
-        
+
         # Filter out system files
         exclude = {'bun.lock', 'package-lock.json', 'LICENSE', '.gitignore', 'e2b.toml'}
         files = [f for f in files if f.split('/')[-1] not in exclude and not f.endswith('.Dockerfile')]
-        
+
         return {"files": files}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to list files: {e}")
+        # Log the error but return empty list instead of throwing
+        import logging
+        logging.error(f"Failed to list files for session {session_id}: {e}")
+        return {"files": []}
 
 
 @router.get("/{session_id}/files/{file_path:path}")
