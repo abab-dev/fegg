@@ -61,17 +61,12 @@ export function ChatPanel({
 
                         {/* Thinking indicator */}
                         {isThinking && (
-                            <div className="flex gap-3 max-w-[90%]">
-                                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-zinc-700 to-zinc-800 flex-shrink-0 flex items-center justify-center">
-                                    <div className="h-4 w-4 rounded bg-gradient-to-br from-orange-500 to-purple-500" />
-                                </div>
-                                <div className="flex items-center gap-1 py-3">
-                                    <span className="flex gap-1">
-                                        <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </span>
-                                </div>
+                            <div className="flex items-center gap-1 py-3 px-1">
+                                <span className="flex gap-1">
+                                    <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <span className="w-1 h-1 bg-zinc-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                </span>
                             </div>
                         )}
                     </div>
