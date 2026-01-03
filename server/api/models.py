@@ -1,9 +1,7 @@
-"""Pydantic models for API"""
 from pydantic import BaseModel, EmailStr
 from typing import Optional, Literal
 from datetime import datetime
 
-# Auth
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
@@ -22,7 +20,6 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     user: UserResponse
 
-# Sessions
 class SessionCreate(BaseModel):
     pass  # No body needed, just creates a new session
 
@@ -34,7 +31,6 @@ class SessionResponse(BaseModel):
     status: Literal["pending", "creating", "ready", "busy", "error", "terminated"]
     created_at: datetime
 
-# Messages
 class MessageCreate(BaseModel):
     content: str
 
@@ -45,7 +41,6 @@ class MessageResponse(BaseModel):
     content: str
     created_at: datetime
 
-# Agent Events (for SSE)
 class AgentEvent(BaseModel):
     type: Literal["token", "tool_start", "tool_end", "preview_ready", "error", "done"]
     content: Optional[str] = None

@@ -1,13 +1,10 @@
-"""FeGG API Configuration"""
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# Database
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./fegg.db")
 
-# JWT
 JWT_SECRET = os.getenv("JWT_SECRET", "dev-secret-change-in-prod")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRE_DAYS = 7

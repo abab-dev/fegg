@@ -1,7 +1,3 @@
-"""
-Async Process Executor with Log Pagination
-For LangGraph-based agents with output management.
-"""
 
 import asyncio
 import os
@@ -16,7 +12,6 @@ from typing import Optional
 
 @dataclass
 class CommandLog:
-    """Stores command execution log with metadata."""
 
     cmd_id: str
     command: str
@@ -34,10 +29,6 @@ class CommandLog:
 
 
 class CommandLogStore:
-    """
-    LRU store for command logs with TTL eviction.
-    Prevents memory bloat from old command outputs.
-    """
 
     def __init__(self, max_entries: int = 50, ttl_minutes: int = 30):
         self._logs: OrderedDict[str, CommandLog] = OrderedDict()
@@ -45,7 +36,6 @@ class CommandLogStore:
         self.ttl = timedelta(minutes=ttl_minutes)
 
     def store(self, log: CommandLog) -> None:
-        """Store a log, evicting old entries if needed."""
         self._evict_expired()
         if len(self._logs) >= self.max_entries:
             self._logs.popitem(last=False)
@@ -53,7 +43,6 @@ class CommandLogStore:
         self._logs.move_to_end(log.cmd_id)
 
     def get(self, cmd_id: str) -> Optional[CommandLog]:
-        """Get a log by ID, returns None if expired or not found."""
         self._evict_expired()
         log = self._logs.get(cmd_id)
         if log:
@@ -61,12 +50,10 @@ class CommandLogStore:
         return log
 
     def list_recent(self, limit: int = 5) -> list[str]:
-        """List recent command IDs."""
         self._evict_expired()
         return list(self._logs.keys())[-limit:]
 
     def _evict_expired(self) -> None:
-        """Remove logs older than TTL."""
         now = datetime.now()
         expired = [
             cid
@@ -78,19 +65,7 @@ class CommandLogStore:
 
 
 class AsyncProcessExecutor:
-    """
-    Async command executor with log pagination for LangGraph agents.
 
-    Features:
-    - Async subprocess execution (native asyncio)
-    - Truncated output by default (last N lines for failures)
-    - On-demand log pagination via read_log()
-    - TTL-based log eviction
-    - Binary output detection
-    - Pagination call limits
-    """
-
-    # Known verbose commands - suppress output on success
     NOISY_PATTERNS = [
         r"^(pip|pip3|python -m pip)\s+install",
         r"^npm\s+(install|ci|update)",
@@ -102,7 +77,6 @@ class AsyncProcessExecutor:
         r"^make\b",
     ]
 
-    # Commands requiring confirmation
     CONFIRM_PATTERNS = [
         r"git\s+push",
         r"git\s+reset\s+--hard",
@@ -114,7 +88,6 @@ class AsyncProcessExecutor:
         r"docker\s+(rm|rmi|system\s+prune)",
     ]
 
-    # Blocked commands - never allow
     BLOCKED_PATTERNS = [
         r"sudo\s+",
         r"rm\s+-[rf]*\s+[/~]",           # rm -rf / or ~
@@ -147,7 +120,6 @@ class AsyncProcessExecutor:
             raise ValueError(f"Root path does not exist: {self.root}")
 
     def _validate_cwd(self, cwd: Optional[str]) -> Path:
-        """Validate cwd is absolute and within root."""
         if cwd is None:
             return self.root
 
@@ -175,7 +147,6 @@ class AsyncProcessExecutor:
         return any(re.search(p, command, re.I) for p in self.NOISY_PATTERNS)
 
     def _is_binary(self, text: str) -> bool:
-        """Detect binary/garbage output."""
         if not text:
             return False
         non_printable = sum(1 for c in text[:1000] if ord(c) < 32 and c not in '\n\r\t')
@@ -184,7 +155,6 @@ class AsyncProcessExecutor:
     def _format_output(
         self, log: CommandLog, verbose: bool = False
     ) -> dict:
-        """Format command output with smart truncation."""
         all_lines = log.stdout_lines + log.stderr_lines
         total_lines = len(all_lines)
 
@@ -241,19 +211,6 @@ class AsyncProcessExecutor:
         confirmed: bool = False,
         verbose: bool = False,
     ) -> dict:
-        """
-        Execute a command asynchronously.
-
-        Args:
-            command: Shell command to run.
-            cwd: Working directory (absolute, within root).
-            timeout: Override default timeout.
-            confirmed: Allow dangerous commands.
-            verbose: Return full output instead of truncated.
-
-        Returns:
-            dict with cmd_id, exit_code, output, and pagination hints.
-        """
         command = command.strip()
         if not command:
             return {"error": "Empty command"}
@@ -322,7 +279,6 @@ class AsyncProcessExecutor:
             return self._format_output(log)
 
     async def _stream_output(self, log: CommandLog) -> None:
-        """Background task to stream output from running process."""
         if not log.process:
             return
         
@@ -360,17 +316,6 @@ class AsyncProcessExecutor:
         cwd: Optional[str] = None,
         wait_for_output: float = 2.0,
     ) -> dict:
-        """
-        Start a command in the background (non-blocking).
-
-        Args:
-            command: Shell command to run.
-            cwd: Working directory (absolute, within root).
-            wait_for_output: Seconds to wait for initial output (default 2s).
-
-        Returns:
-            dict with cmd_id, status, initial_output, and detected port/url.
-        """
         command = command.strip()
         if not command:
             return {"error": "Empty command"}
@@ -453,7 +398,6 @@ class AsyncProcessExecutor:
             }
 
     def _detect_url(self, output: str) -> Optional[str]:
-        """Detect URL/port from command output."""
         patterns = [
             r"Local:\s*(https?://[^\s]+)",
             r"http://localhost:(\d+)",
@@ -473,7 +417,6 @@ class AsyncProcessExecutor:
         return None
 
     async def _kill_similar_background(self, command: str) -> None:
-        """Kill previous background processes running similar commands."""
         cmd_words = command.split()[:3]
         
         for cmd_id in list(self.log_store._logs.keys()):
@@ -484,15 +427,6 @@ class AsyncProcessExecutor:
                     await self.terminate(cmd_id)
 
     async def terminate(self, cmd_id: str) -> dict:
-        """
-        Terminate a running background process.
-        
-        Args:
-            cmd_id: Command ID from run_background result.
-        
-        Returns:
-            dict with status and final output.
-        """
         log = self.log_store.get(cmd_id)
 
         if log is None:
@@ -543,7 +477,6 @@ class AsyncProcessExecutor:
             }
 
     async def cleanup_all(self) -> dict:
-        """Terminate all running background processes. Call on session end."""
         terminated = []
 
         for cmd_id in list(self.log_store._logs.keys()):
@@ -568,18 +501,6 @@ class AsyncProcessExecutor:
         limit: int = 100,
         from_end: bool = False,
     ) -> dict:
-        """
-        Read more lines from a command log.
-
-        Args:
-            cmd_id: Command ID from run_command result.
-            offset: Line number to start from (0-indexed). None = auto (from_end).
-            limit: Max lines to return.
-            from_end: If True and offset is None, start from end.
-
-        Returns:
-            dict with lines, total_lines, and navigation hints.
-        """
         log = self.log_store.get(cmd_id)
 
         if log is None:
@@ -644,7 +565,6 @@ class AsyncProcessExecutor:
         return result
 
     def list_commands(self, limit: int = 5) -> list[dict]:
-        """List recent commands with their status."""
         recent_ids = self.log_store.list_recent(limit)
         results = []
         for cmd_id in reversed(recent_ids):  # Most recent first

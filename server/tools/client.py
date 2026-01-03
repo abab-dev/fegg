@@ -1,6 +1,3 @@
-"""
-RepoMind Client - Convenience wrapper for all tools
-"""
 
 from .fs import FileSystemTools
 from .edit import CodeEditor
@@ -10,12 +7,6 @@ from .git_ops import GitTools
 
 
 class RepoMind:
-    """
-    Convenience wrapper that combines all tools.
-    Usage:
-        rm = RepoMind("/path/to/repo")
-        tools = rm.get_tools()  # List of callables for LLM binding
-    """
 
     def __init__(self, repo_path: str = ".", confirm_callback=None):
         self.repo_path = repo_path
@@ -32,10 +23,6 @@ class RepoMind:
             self.git = None
 
     def get_tools(self):
-        """
-        Returns a list of tool callables for LLM binding.
-        Each tool is a bound method with proper signature.
-        """
         tools = [
             self.fs.list_files,
             self.fs.read_file,
@@ -46,7 +33,6 @@ class RepoMind:
             self.edit.apply_file_edit,
         ]
 
-        # Add git tools if available
         if self.git:
             tools.extend(
                 [
@@ -62,9 +48,6 @@ class RepoMind:
         return tools
 
     def get_tool_info(self):
-        """
-        Returns tool information for documentation or schema generation.
-        """
         info = [
             {
                 "name": "list_files",

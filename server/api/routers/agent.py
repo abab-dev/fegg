@@ -1,4 +1,3 @@
-"""Agent router - message handling and SSE streaming"""
 import json
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,10 +13,8 @@ from ..services.sandbox_manager import create_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
 
-# In-memory pending messages (session_id -> (user_id, message content))
 _pending_messages: dict[str, tuple[str, str]] = {}
 
-# Tools to show in the UI - all tools for full visibility
 VISIBLE_TOOLS = {
     "read_file", "write_file", "list_files",
     "grep_search", "fuzzy_find",
@@ -32,10 +29,8 @@ async def send_message(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Send a message to the agent. Triggers processing."""
     user_id = current_user["id"]
-    
-    # Verify session belongs to user
+
     result = await db.execute(
         select(Session).where(
             Session.id == session_id,
@@ -50,11 +45,9 @@ async def send_message(
     if session.status == "busy":
         raise HTTPException(status_code=409, detail="Session is busy")
     
-    # Allow pending (no sandbox yet) or ready sessions
     if session.status not in ["pending", "ready"]:
         raise HTTPException(status_code=400, detail=f"Session not ready: {session.status}")
     
-    # Store user message
     message = Message(
         session_id=session_id,
         role="user",
@@ -62,12 +55,10 @@ async def send_message(
     )
     db.add(message)
     
-    # Mark session as busy
     session.status = "busy"
     session.last_activity = datetime.utcnow()
     await db.commit()
     
-    # Store pending message with user_id and needs_sandbox flag
     needs_sandbox = session.sandbox_id is None
     _pending_messages[session_id] = (user_id, body.content, needs_sandbox)
     
@@ -79,8 +70,6 @@ async def stream_events(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """SSE endpoint for streaming agent events."""
-    # Verify session
     result = await db.execute(
         select(Session).where(
             Session.id == session_id,
@@ -90,7 +79,6 @@ async def stream_events(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Session not found")
     
-    # Get pending message with user_id
     pending = _pending_messages.get(session_id)
     if not pending:
         raise HTTPException(status_code=400, detail="No pending message")
@@ -100,16 +88,14 @@ async def stream_events(
     async def generate():
         assistant_content = ""
         preview_url = None
-        collected_steps = []  # Collect steps for persistence
+        collected_steps = []
         step_counter = 0
-        
+
         try:
-            # If sandbox doesn't exist, create it now (silently - no status events)
             if needs_sandbox:
                 try:
                     sandbox_id, preview_url = await create_sandbox(session_id, user_id)
-                    
-                    # Update session in DB with sandbox info
+
                     async with async_session() as db2:
                         result = await db2.execute(select(Session).where(Session.id == session_id))
                         session = result.scalar_one_or_none()
@@ -122,13 +108,11 @@ async def stream_events(
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
-            
-            # Stream agent events
+
             preview_emitted = False
-            tool_step_map = {}  # Track tool call IDs for status updates
-            
+            tool_step_map = {}
+
             async for event in stream_agent_events(user_id, session_id, message):
-                # Accumulate user_message content for saving
                 if event["type"] == "user_message":
                     assistant_content += event.get("content", "")
                     yield f"data: {json.dumps(event)}\n\n"
@@ -136,12 +120,10 @@ async def stream_events(
                 elif event["type"] == "tool_start":
                     tool_name = event.get("tool", "")
                     
-                    # Only show visible tools (read/write file)
                     if tool_name in VISIBLE_TOOLS:
                         step_counter += 1
                         step_id = f"step-{step_counter}"
-                        
-                        # Create friendly title
+
                         args = event.get("args", {})
                         path = args.get("path", "")
                         filename = path.split("/")[-1] if path else ""
@@ -183,12 +165,10 @@ async def stream_events(
                 
                 elif event["type"] == "tool_end":
                     tool_name = event.get("tool", "")
-                    
-                    # Only emit for visible tools
+
                     if tool_name in VISIBLE_TOOLS:
                         step_id = tool_step_map.get(tool_name)
                         if step_id:
-                            # Update step status
                             for step in collected_steps:
                                 if step["id"] == step_id:
                                     step["status"] = "done"
@@ -196,12 +176,10 @@ async def stream_events(
                         
                         yield f"data: {json.dumps({'type': 'tool_end', 'tool': tool_name, 'step_id': step_id})}\n\n"
 
-                # Capture preview URL from preview_ready or done event
                 elif event["type"] == "preview_ready":
                     preview_url = event.get("url")
                     preview_emitted = True
-                    
-                    # Add preview step
+
                     step_counter += 1
                     preview_step = {
                         "id": f"step-{step_counter}",
@@ -218,8 +196,7 @@ async def stream_events(
                     url = event.get("preview_url")
                     if url:
                         preview_url = url
-                    
-                    # Ensure preview is sent before done if we have it
+
                     if not preview_emitted and preview_url:
                         step_counter += 1
                         preview_step = {
@@ -234,11 +211,10 @@ async def stream_events(
                         preview_emitted = True
 
                     yield f"data: {json.dumps(event)}\n\n"
-                
+
                 elif event["type"] == "error":
                     yield f"data: {json.dumps(event)}\n\n"
-            
-            # Save assistant message with steps to DB
+
             async with async_session() as db2:
                 if assistant_content or collected_steps:
                     msg = Message(
@@ -249,7 +225,6 @@ async def stream_events(
                     )
                     db2.add(msg)
 
-                # Mark session as ready and update preview URL if set
                 result = await db2.execute(select(Session).where(Session.id == session_id))
                 session = result.scalar_one_or_none()
                 if session:
@@ -262,7 +237,6 @@ async def stream_events(
             
         except Exception as e:
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-            # Mark session as ready on error
             async with async_session() as db2:
                 result = await db2.execute(select(Session).where(Session.id == session_id))
                 session = result.scalar_one_or_none()
@@ -270,7 +244,6 @@ async def stream_events(
                     session.status = "ready"
                 await db2.commit()
         finally:
-            # Clear pending message
             _pending_messages.pop(session_id, None)
     
     return StreamingResponse(
@@ -289,8 +262,6 @@ async def list_messages(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all messages for a session, including persisted tool steps."""
-    # Verify session
     result = await db.execute(
         select(Session).where(
             Session.id == session_id,
@@ -307,7 +278,6 @@ async def list_messages(
     )
     messages = result.scalars().all()
     
-    # Return messages with steps parsed from JSON
     return [
         {
             "id": m.id,

@@ -1,52 +1,24 @@
-"""
-File Backend Abstraction
-
-Protocol-based interface for file/command operations.
-Implementations work identically whether local or in E2B sandbox.
-
-Usage:
-    # Local development
-    backend = LocalBackend("/path/to/workspace")
-    
-    # E2B sandbox
-    backend = E2BBackend(sandbox, "/home/user/workspace")
-    
-    # Same interface for both
-    content = backend.read_file("src/App.tsx")
-    backend.write_file("src/App.tsx", new_content)
-    result = backend.run_command("bun run dev")
-"""
 
 from typing import Protocol, Optional
 from dataclasses import dataclass
 
 
 class FileBackend(Protocol):
-    """
-    Protocol defining file/command operations.
-
-    Implementations must provide these methods.
-    """
 
     @property
     def root(self) -> str:
-        """Workspace root path."""
         ...
 
     def read_file(self, path: str) -> str:
-        """Read file contents. Path is relative to root."""
         ...
 
     def write_file(self, path: str, content: str) -> None:
-        """Write content to file. Creates parent dirs if needed."""
         ...
 
     def file_exists(self, path: str) -> bool:
-        """Check if file exists."""
         ...
 
     def list_dir(self, path: str = ".") -> list[str]:
-        """List directory contents. Returns relative paths."""
         ...
 
     def run_command(
@@ -55,7 +27,6 @@ class FileBackend(Protocol):
         timeout: int = 30,
         cwd: Optional[str] = None
     ) -> "CommandResult":
-        """Run shell command. Returns stdout/stderr/exit_code."""
         ...
 
     def grep(
@@ -64,30 +35,26 @@ class FileBackend(Protocol):
         path: str = ".",
         context_lines: int = 2
     ) -> str:
-        """Search for pattern in files. Returns matches with context."""
         ...
 
 
 @dataclass
 class CommandResult:
-    """Result of a command execution."""
     stdout: str
     stderr: str
     exit_code: int
-    
+
     @property
     def success(self) -> bool:
         return self.exit_code == 0
-    
+
     @property
     def output(self) -> str:
-        """Combined stdout + stderr."""
         return self.stdout + ("\n" + self.stderr if self.stderr else "")
 
 
 class LocalBackend:
-    """File backend for local filesystem operations."""
-    
+
     def __init__(self, root_path: str):
         from pathlib import Path
         self._root = Path(root_path).resolve()
@@ -99,7 +66,6 @@ class LocalBackend:
         return str(self._root)
     
     def _resolve(self, path: str) -> "Path":
-        """Resolve relative path to absolute, ensuring within root."""
         from pathlib import Path
         if path.startswith("/"):
             full = Path(path)
@@ -167,7 +133,6 @@ class LocalBackend:
         path: str = ".",
         context_lines: int = 2
     ) -> str:
-        """Search using grep (or rg if available)."""
         target = self._resolve(path)
 
         cmd = f'rg --color=never -n -C {context_lines} "{pattern}" "{target}" 2>/dev/null || grep -rn -C {context_lines} "{pattern}" "{target}"'
@@ -180,8 +145,7 @@ class LocalBackend:
 
 
 class E2BBackend:
-    """File backend for E2B sandbox operations."""
-    
+
     def __init__(self, sandbox, root_path: str = "/home/user/workspace"):
         self._sandbox = sandbox
         self._root = root_path
@@ -191,7 +155,6 @@ class E2BBackend:
         return self._root
     
     def _resolve(self, path: str) -> str:
-        """Resolve relative path to absolute within workspace."""
         if path.startswith("/"):
             return path
         return f"{self._root}/{path}".replace("//", "/")
@@ -246,7 +209,6 @@ class E2BBackend:
         path: str = ".",
         context_lines: int = 2
     ) -> str:
-        """Search using grep in sandbox."""
         full_path = self._resolve(path)
 
         cmd = f'grep -rn -C {context_lines} "{pattern}" "{full_path}" 2>/dev/null || echo "No matches found"'

@@ -1,4 +1,3 @@
-"""Sessions router - CRUD for user sessions"""
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,18 +17,13 @@ async def create_session(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new session WITHOUT sandbox (lazy spawning).
-    
-    Sandbox is created on first message to save resources.
-    """
     session_id = str(uuid.uuid4())
     user_id = current_user["id"]
-    
-    # Create session in pending state (no sandbox yet)
+
     session = Session(
         id=session_id,
         user_id=user_id,
-        status="pending"  # No sandbox yet
+        status="pending"
     )
     db.add(session)
     await db.commit()
@@ -49,7 +43,6 @@ async def list_sessions(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """List all sessions for current user."""
     result = await db.execute(
         select(Session)
         .where(Session.user_id == current_user["id"])
@@ -70,7 +63,6 @@ async def get_session(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get a specific session."""
     result = await db.execute(
         select(Session).where(
             Session.id == session_id,
@@ -93,7 +85,6 @@ async def delete_session(
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete a session and terminate sandbox."""
     user_id = current_user["id"]
     
     result = await db.execute(
@@ -106,14 +97,12 @@ async def delete_session(
     
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    
-    # Terminate sandbox (by user_id)
+
     try:
         await destroy_user_sandbox(user_id)
     except Exception:
-        pass  # Best effort cleanup
-    
-    # Update session status
+        pass
+
     session.status = "terminated"
     await db.commit()
     

@@ -1,9 +1,3 @@
-"""
-Frontend Agent with E2B Sandbox Backend
-
-Same agent logic, but runs in E2B sandbox instead of local filesystem.
-Uses FileBackend abstraction for seamless switching.
-"""
 
 import os
 import json
@@ -68,13 +62,11 @@ class Logger:
 
 
 def create_tools(tools: FSTools, sandbox: UserSandbox):
-    """Create LangChain tools from FSTools + sandbox."""
 
     class ReadFileInput(BaseModel):
         path: str = Field(description="Path to file (relative to workspace)")
     
     def read_file(path: str) -> str:
-        """Read contents of a file."""
         return tools.read_file(path)
     
     class WriteFileInput(BaseModel):
@@ -82,14 +74,12 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         content: str = Field(description="Content to write")
     
     def write_file(path: str, content: str) -> str:
-        """Write content to a file. Creates parent directories."""
         return tools.write_file(path, content)
     
     class ListFilesInput(BaseModel):
         path: str = Field(default=".", description="Directory to list")
     
     def list_files(path: str = ".") -> str:
-        """List files in directory."""
         return tools.list_dir(path)
     
     class GrepInput(BaseModel):
@@ -97,14 +87,12 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         path: str = Field(default=".", description="Path to search in")
     
     def grep_search(pattern: str, path: str = ".") -> str:
-        """Search for pattern in files."""
         return tools.grep(pattern, path)
     
     class FuzzyFindInput(BaseModel):
         query: str = Field(description="Partial filename to search for")
     
     def fuzzy_find(query: str) -> str:
-        """Fuzzy search for files by name."""
         return tools.fuzzy_find(query)
 
     class RunCommandInput(BaseModel):
@@ -112,11 +100,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         timeout: int = Field(default=60, description="Max seconds to wait")
     
     def run_command(command: str, timeout: int = 60) -> str:
-        """
-        Run a shell command that terminates.
-        Use for: bun run build, bun install, etc.
-        DO NOT use for dev servers.
-        """
+        """Run a shell command that terminates. Use for: bun run build, bun install, etc. NOT for dev servers."""
         result = sandbox.sandbox.commands.run(
             f"cd {sandbox.workspace_path} && {command}",
             timeout=timeout
@@ -130,10 +114,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         command: str = Field(default="bun run dev", description="Dev server command")
     
     def start_dev_server(command: str = "bun run dev") -> str:
-        """
-        Start dev server in background. Waits for server to be ready.
-        Returns preview URL when server is responding.
-        """
+        """Start dev server in background. Returns preview URL when ready."""
         try:
             sandbox.sandbox.commands.run("pkill -f 'vite' 2>/dev/null; exit 0", timeout=5)
         except:
@@ -179,7 +160,6 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             return f"Dev server started but couldn't get URL: {e}"
 
     def get_preview_url() -> str:
-        """Get the public preview URL for the running dev server."""
         if sandbox.preview_url:
             return sandbox.preview_url
         try:
@@ -191,7 +171,6 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             return "No preview URL available. Start dev server first."
 
     def check_dev_server() -> str:
-        """Check if dev server is running and get recent logs."""
         result = sandbox.sandbox.commands.run(
             "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
             timeout=5
@@ -212,15 +191,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         message: str = Field(description="Message to show to the user")
     
     def show_user_message(message: str) -> str:
-        """
-        Send a message to the user. Use this tool to communicate:
-        - What you've done (summary of changes)
-        - What to do next
-        - Any important information
-        
-        This is the ONLY way to communicate with the user. Regular text responses are not shown.
-        Always use this tool at the end of your work to inform the user.
-        """
+        """Send a message to the user. ONLY way to communicate - use at end of work."""
         return message
 
     wrapped = [
@@ -249,7 +220,6 @@ def get_llm():
 
 
 def create_agent_node(system_prompt: str, tools: list):
-    """Create the main agent node."""
 
     llm = get_llm()
     llm_bound = llm.bind_tools(tools)
@@ -266,7 +236,6 @@ def create_agent_node(system_prompt: str, tools: list):
         return {"messages": [response]}
     
     def tool_executor(state: MessagesState) -> Dict[str, Any]:
-        """Execute tools called by agent."""
         messages = state["messages"]
         last_message = messages[-1]
         
@@ -307,12 +276,6 @@ def create_agent_node(system_prompt: str, tools: list):
 
 
 def build_graph(user_sandbox: UserSandbox, file_cache=None):
-    """Build the LangGraph for frontend agent with E2B backend.
-    
-    Args:
-        user_sandbox: The E2B sandbox instance.
-        file_cache: Optional FileCache for caching file contents across invocations.
-    """
     from tools.backend_tools import FileCache
     
     backend = E2BBackend(user_sandbox.sandbox, user_sandbox.workspace_path)
@@ -338,7 +301,6 @@ def build_graph(user_sandbox: UserSandbox, file_cache=None):
 
 
 def run_agent(user_id: str, query: str):
-    """Run the frontend agent in E2B sandbox."""
 
     Logger.log_system("Creating E2B sandbox...")
     manager = SandboxManager()

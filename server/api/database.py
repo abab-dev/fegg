@@ -1,4 +1,3 @@
-"""Database setup with SQLAlchemy async"""
 from datetime import datetime
 from pathlib import Path
 from typing import AsyncGenerator
@@ -9,13 +8,7 @@ from sqlalchemy.orm import declarative_base, relationship
 
 from .config import DATABASE_URL
 
-# For SQLite, use the api directory
 DB_PATH = Path(__file__).parent / "fegg.db"
-
-# Async engine - works with SQLite, PostgreSQL, etc.
-# For SQLite: sqlite+aiosqlite:///./fegg.db
-# For Turso: libsql+aiosqlite://...
-# For PostgreSQL: postgresql+asyncpg://...
 
 if "sqlite" in DATABASE_URL:
     engine = create_async_engine(
@@ -48,7 +41,7 @@ class Session(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     sandbox_id = Column(String, nullable=True)
     preview_url = Column(String, nullable=True)
-    status = Column(String, default="creating")  # creating, ready, busy, error, terminated
+    status = Column(String, default="creating")
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -61,22 +54,20 @@ class Message(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String, ForeignKey("sessions.id"), nullable=False)
-    role = Column(String, nullable=False)  # user, assistant
+    role = Column(String, nullable=False)
     content = Column(Text, nullable=False)
-    steps = Column(Text, nullable=True)  # JSON array of tool steps for persistence
+    steps = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     
     session = relationship("Session", back_populates="messages")
 
 
 async def init_db():
-    """Create all tables."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency to get database session."""
     async with async_session() as session:
         try:
             yield session

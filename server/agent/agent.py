@@ -1,7 +1,3 @@
-"""
-Frontend Agent - Lovable-like frontend builder
-Single-agent LangGraph implementation with RepoMind tools.
-"""
 
 import os
 import shutil
@@ -72,10 +68,6 @@ class Logger:
 
 
 def init_workspace(force: bool = False) -> Path:
-    """
-    Initialize workspace by copying template.
-    Returns the workspace path.
-    """
     if WORKSPACE_PATH.exists():
         if force:
             Logger.log_system(f"Removing existing workspace...")
@@ -91,7 +83,6 @@ def init_workspace(force: bool = False) -> Path:
 
 
 def create_tools(workspace: Path):
-    """Create tools for the frontend agent."""
 
     rm = RepoMind(str(workspace))
 
@@ -100,7 +91,6 @@ def create_tools(workspace: Path):
     loop = asyncio.new_event_loop()
 
     def run_async(coro):
-        """Run async code in the persistent event loop."""
         return loop.run_until_complete(coro)
 
     class RunCommandInput(BaseModel):
@@ -108,12 +98,7 @@ def create_tools(workspace: Path):
         timeout: int = Field(default=60, description="Max seconds to wait (default 60)")
 
     def run_command(command: str, timeout: int = 60) -> dict:
-        """
-        Run a shell command that terminates (completes and exits).
-
-        Use for: npm run build, npm install, npm run lint, etc.
-        DO NOT use for: npm run dev (use start_dev_server instead).
-        """
+        """Run a shell command that terminates. Use for: npm run build, npm install, etc. DO NOT use for dev servers."""
         try:
             result = run_async(bash.run_command(command, timeout=timeout))
             return result
@@ -127,12 +112,7 @@ def create_tools(workspace: Path):
         )
 
     def start_dev_server(command: str = "npm run dev") -> dict:
-        """
-        Start a development server in the background.
-
-        Returns immediately after server starts. Automatically kills previous dev server.
-        Can be called with no arguments - defaults to 'npm run dev'.
-        """
+        """Start dev server in background. Returns immediately. Kills previous dev server."""
         try:
             result = run_async(bash.run_background(command, wait_for_output=5.0))
             return result
@@ -148,11 +128,7 @@ def create_tools(workspace: Path):
         )
 
     def read_output(cmd_id: str, last_lines: int = 50) -> dict:
-        """
-        Read recent output from a command (running or completed).
-
-        Use this to check on a running dev server or see full output from a completed command.
-        """
+        """Read recent output from a command."""
         try:
             result = bash.read_log(cmd_id, limit=last_lines, from_end=True)
             return result
@@ -163,11 +139,7 @@ def create_tools(workspace: Path):
         cmd_id: str = Field(description="Command ID from start_dev_server")
 
     def stop_command(cmd_id: str) -> dict:
-        """
-        Stop a running background command (e.g., dev server).
-
-        Use this to terminate a dev server started with start_dev_server.
-        """
+        """Stop a running background command."""
         try:
             result = run_async(bash.terminate(cmd_id))
             return result
@@ -223,7 +195,6 @@ def get_llm():
 
 
 def create_agent_node(system_prompt: str, tools: list):
-    """Create the main agent node."""
 
     llm = get_llm()
     llm_bound = llm.bind_tools(tools)
@@ -240,7 +211,6 @@ def create_agent_node(system_prompt: str, tools: list):
         return {"messages": [response]}
 
     def tool_executor(state: MessagesState) -> Dict[str, Any]:
-        """Execute tools called by agent."""
         messages = state["messages"]
         last_message = messages[-1]
 
@@ -282,7 +252,6 @@ def create_agent_node(system_prompt: str, tools: list):
 
 
 def build_graph(workspace: Path):
-    """Build the LangGraph for frontend agent."""
 
     workspace_root = str(workspace.resolve())
 
@@ -304,7 +273,6 @@ def build_graph(workspace: Path):
 
 
 def run_agent(query: str, reset_workspace: bool = False):
-    """Run the frontend agent with a query."""
 
     workspace = init_workspace(force=reset_workspace)
 
@@ -347,9 +315,7 @@ def run_agent(query: str, reset_workspace: bool = False):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Frontend Agent - Lovable-like frontend builder"
-    )
+    parser = argparse.ArgumentParser(description="Frontend Agent")
     parser.add_argument(
         "--reset", "-r", action="store_true", help="Reset workspace from template"
     )

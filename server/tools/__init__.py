@@ -1,7 +1,3 @@
-"""
-Server Tools - Consolidated tools for file, git, bash operations
-"""
-
 from .fs import FileSystemTools
 from .edit import CodeEditor
 from .tools import FileSystemSearchTools

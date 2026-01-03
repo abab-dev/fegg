@@ -1,4 +1,3 @@
-"""FeGG API - Main FastAPI application"""
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,12 +9,9 @@ from .services.sandbox_manager import cleanup_all
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Startup and shutdown events."""
-    # Startup
     await init_db()
     print("Database initialized")
     yield
-    # Shutdown
     await cleanup_all()
     print("Sandboxes cleaned up")
 
@@ -26,7 +22,6 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -35,12 +30,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routers
 app.include_router(auth.router)
 app.include_router(sessions.router)
 app.include_router(agent.router)
 
 @app.get("/health")
 async def health():
-    """Health check endpoint."""
     return {"status": "ok"}

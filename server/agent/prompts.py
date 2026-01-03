@@ -1,8 +1,4 @@
-"""
-E2B Frontend Agent Prompts - Optimized
-"""
 
-# Compact file tree - just the essentials
 TEMPLATE_STRUCTURE = """
 src/
 ├── App.tsx              # START HERE - main component
@@ -14,7 +10,6 @@ src/
 └── lib/utils.ts         # cn() utility
 """
 
-# All available UI components (for reference)
 SHADCN_COMPONENTS = [
     "accordion", "alert-dialog", "alert", "aspect-ratio", "avatar", "badge",
     "breadcrumb", "button", "calendar", "card", "carousel", "chart", "checkbox",
@@ -27,7 +22,6 @@ SHADCN_COMPONENTS = [
 
 
 def get_e2b_agent_prompt(workspace_root: str) -> str:
-    """Generate the optimized E2B Frontend Agent system prompt."""
     
     components = ", ".join(SHADCN_COMPONENTS)
     

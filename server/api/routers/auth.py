@@ -1,4 +1,3 @@
-"""Auth router - registration and login"""
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,13 +11,10 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=TokenResponse)
 async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
-    """Register a new user."""
-    # Check if email exists
     result = await db.execute(select(User).where(User.email == body.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Create user
+
     user = User(
         id=str(uuid.uuid4()),
         email=body.email,
@@ -35,7 +31,6 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
-    """Login with email and password."""
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
     
@@ -49,5 +44,4 @@ async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
-    """Get current authenticated user."""
     return UserResponse(**current_user)

@@ -1,21 +1,13 @@
-"""
-Test AsyncProcessExecutor in isolation without the full agent.
-Demonstrates:
-1. How background processes work (for continuous commands like npm run dev)
-2. How log pagination avoids polluting the context window
-"""
 
 import asyncio
 import sys
 from pathlib import Path
 from bashtools import AsyncProcessExecutor
 
-# Use the frontend agent workspace as the test directory
 WORKSPACE = Path("/home/ab/fegg/frontend_agent/workspace")
 
 
 async def test_blocking_command():
-    """Test a blocking command that completes and exits."""
     print("=" * 60)
     print("TEST 1: Blocking command (npm run build)")
     print("=" * 60)
@@ -36,7 +28,6 @@ async def test_blocking_command():
 
 
 async def test_background_command():
-    """Test a background command that runs continuously."""
     print("\n" + "=" * 60)
     print("TEST 2: Background command (npm run dev)")
     print("=" * 60)
@@ -59,7 +50,6 @@ async def test_background_command():
     print(result.get('initial_output', 'No output'))
     print("-" * 40)
 
-    # Simulate agent checking back later - only reading last few lines
     print(f"\n4. Agent checks back later - reading only LAST 5 lines:")
     print("(This avoids polluting context window with full output)")
     log_result = executor.read_log(cmd_id, limit=5, from_end=True)
@@ -75,12 +65,10 @@ async def test_background_command():
     print(log_result.get('lines', 'No output'))
     print("-" * 40)
 
-    # List recent commands
     print(f"\n7. Recent commands:")
     for cmd in executor.list_commands(limit=3):
         print(f"  - {cmd['cmd_id']}: {cmd['command']} (exit_code={cmd.get('exit_code')}, running={cmd.get('is_running')})")
 
-    # Cleanup
     print(f"\n8. Stopping dev server...")
     stop_result = await executor.terminate(cmd_id)
     print(f"  status: {stop_result.get('status')}")
@@ -88,7 +76,6 @@ async def test_background_command():
 
 
 async def test_context_window_simulation():
-    """Demonstrate how pagination prevents context pollution."""
     print("\n" + "=" * 60)
     print("TEST 3: Context Window Simulation")
     print("=" * 60)
@@ -113,7 +100,6 @@ async def test_context_window_simulation():
                 print(f"     {line.strip()}")
         await asyncio.sleep(1)
 
-    # Show total lines vs what agent actually reads
     log = executor.read_log(cmd_id, limit=3, from_end=True)
     total = log.get('total_lines', 0)
     print(f"\n4. Summary:")
@@ -128,7 +114,6 @@ async def test_context_window_simulation():
 
 
 async def test_noisy_command_suppression():
-    """Test that noisy commands are suppressed on success."""
     print("\n" + "=" * 60)
     print("TEST 4: Noisy Command Suppression")
     print("=" * 60)
@@ -148,7 +133,6 @@ async def test_noisy_command_suppression():
 
 
 async def main():
-    """Run all tests."""
     print("\n" + "=" * 60)
     print("AsyncProcessExecutor Isolation Test")
     print("=" * 60)
@@ -158,7 +142,6 @@ async def main():
         print(f"\nERROR: Workspace not found at {WORKSPACE}")
         return
 
-    # Run tests
     await test_blocking_command()
     await test_background_command()
     await test_context_window_simulation()
