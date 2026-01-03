@@ -19,6 +19,7 @@ export interface Step {
 
 export interface Session {
     id: string;
+    name?: string;
     preview_url: string | null;
     status: string;
     created_at: string;

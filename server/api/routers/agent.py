@@ -17,8 +17,12 @@ router = APIRouter(prefix="/sessions", tags=["agent"])
 # In-memory pending messages (session_id -> (user_id, message content))
 _pending_messages: dict[str, tuple[str, str]] = {}
 
-# Tools to show in the UI (file-related only)
-VISIBLE_TOOLS = {"read_file", "write_file", "list_files", "grep_search", "fuzzy_find"}
+# Tools to show in the UI - all tools for full visibility
+VISIBLE_TOOLS = {
+    "read_file", "write_file", "list_files",
+    "grep_search", "fuzzy_find",
+    "run_command", "start_dev_server", "check_dev_server", "get_preview_url",
+}
 
 
 @router.post("/{session_id}/message")
@@ -154,6 +158,15 @@ async def stream_events(
                         elif tool_name == "fuzzy_find":
                             query = args.get("query", "")
                             title = f"Finding '{query}'"
+                        elif tool_name == "run_command":
+                            cmd = args.get("command", "")[:25]
+                            title = f"Running {cmd}{'...' if len(args.get('command', '')) > 25 else ''}"
+                        elif tool_name == "start_dev_server":
+                            title = "Starting dev server"
+                        elif tool_name == "check_dev_server":
+                            title = "Checking server"
+                        elif tool_name == "get_preview_url":
+                            title = "Getting preview URL"
                         else:
                             title = tool_name.replace("_", " ").title()
                         

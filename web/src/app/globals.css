@@ -150,3 +150,44 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Scrollbar - Beautiful Modern Style */
+@layer utilities {
+
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgb(63 63 70 / 0.3);
+    border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: all 0.2s ease;
+  }
+
+  .scrollbar-thin:hover::-webkit-scrollbar-thumb {
+    background: rgb(82 82 91 / 0.7);
+    border: 0px solid transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background: rgb(82 82 91);
+  }
+
+  /* Firefox */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(63 63 70 / 0.3) transparent;
+  }
+
+  .scrollbar-thin:hover {
+    scrollbar-color: rgb(82 82 91 / 0.7) transparent;
+  }
+}
