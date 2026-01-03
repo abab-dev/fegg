@@ -99,7 +99,11 @@ async def stream_agent_events(
         )
         history = result.scalars().all()
 
-        for msg in history:
+        # Limit history to save tokens - codebase itself acts as memory
+        MAX_HISTORY = 6  # Last 3 user/assistant pairs
+        recent_history = history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
+
+        for msg in recent_history:
             if msg.role == "user":
                 messages.append(HumanMessage(content=msg.content))
             else:
