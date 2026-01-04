@@ -70,16 +70,16 @@ function buildTree(paths: string[]): TreeNode[] {
 function getFileColor(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase()
     const colors: Record<string, string> = {
-        'tsx': 'text-blue-400',
-        'ts': 'text-blue-400',
-        'jsx': 'text-yellow-400',
-        'js': 'text-yellow-400',
-        'css': 'text-purple-400',
-        'json': 'text-yellow-500',
-        'html': 'text-orange-400',
-        'md': 'text-zinc-400',
+        'tsx': 'text-chart-1',
+        'ts': 'text-chart-1',
+        'jsx': 'text-chart-3',
+        'js': 'text-chart-3',
+        'css': 'text-chart-4',
+        'json': 'text-chart-3',
+        'html': 'text-primary',
+        'md': 'text-muted-foreground',
     }
-    return colors[ext || ''] || 'text-zinc-400'
+    return colors[ext || ''] || 'text-muted-foreground'
 }
 
 function getLanguage(path: string): string {
@@ -115,19 +115,19 @@ function TreeNodeItem({
             <button
                 onClick={() => node.isFolder ? onToggle(node.path) : onSelect(node.path)}
                 className={cn(
-                    "w-full text-left py-1 pr-2 text-xs flex items-center gap-1 hover:bg-zinc-800/50 transition-colors group",
-                    isActive && !node.isFolder && "bg-zinc-800 text-white"
+                    "w-full text-left py-1 pr-2 text-xs flex items-center gap-1 hover:bg-muted/50 transition-colors group",
+                    isActive && !node.isFolder && "bg-accent text-accent-foreground"
                 )}
                 style={{ paddingLeft: `${depth * 12 + 8}px` }}
             >
                 {node.isFolder ? (
                     <>
                         {isExpanded ? (
-                            <ChevronDown className="h-3 w-3 text-zinc-500 flex-shrink-0" />
+                            <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         ) : (
-                            <ChevronRight className="h-3 w-3 text-zinc-500 flex-shrink-0" />
+                            <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         )}
-                        <Folder className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
+                        <Folder className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
                     </>
                 ) : (
                     <>
@@ -137,7 +137,7 @@ function TreeNodeItem({
                 )}
                 <span className={cn(
                     "truncate",
-                    node.isFolder ? "text-zinc-300" : "text-zinc-400 group-hover:text-zinc-200"
+                    node.isFolder ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
                 )}>
                     {node.name}
                 </span>
@@ -201,8 +201,8 @@ export function CodeEditor({
     return (
         <div className="flex flex-1 overflow-hidden h-full">
             {/* File Tree Sidebar */}
-            <div className="w-56 border-r border-zinc-800 bg-[#0c0c0e] flex flex-col min-h-0">
-                <div className="p-2 text-[11px] font-medium text-zinc-500 uppercase tracking-wider border-b border-zinc-800/50 flex-shrink-0">
+            <div className="w-56 border-r border-border bg-sidebar flex flex-col min-h-0">
+                <div className="p-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border flex-shrink-0">
                     Explorer
                 </div>
                 <div className="py-1 overflow-y-auto flex-1 scrollbar-thin">
@@ -224,14 +224,14 @@ export function CodeEditor({
             <div className="flex-1 flex flex-col min-w-0">
                 {/* Open File Tabs */}
                 {openFiles.length > 0 && (
-                    <div className="h-9 border-b border-zinc-800 bg-[#0c0c0e] flex-shrink-0 overflow-x-auto scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="h-9 border-b border-border bg-sidebar flex-shrink-0 overflow-x-auto scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
                         <div className="flex items-center h-full min-w-max">
                             {openFiles.map((file) => (
                                 <div
                                     key={file}
                                     className={cn(
-                                        "flex items-center gap-2 px-3 h-full border-r border-zinc-800 cursor-pointer group flex-shrink-0",
-                                        activeFile === file ? "bg-[#0a0a0b] text-white" : "text-zinc-500 hover:text-zinc-300"
+                                        "flex items-center gap-2 px-3 h-full border-r border-border cursor-pointer group flex-shrink-0",
+                                        activeFile === file ? "bg-background text-foreground" : "text-muted-foreground hover:text-foreground"
                                     )}
                                     onClick={() => onFileSelect(file)}
                                 >
@@ -255,7 +255,7 @@ export function CodeEditor({
                 {/* Monaco Editor */}
                 <div className="flex-1 min-h-0">
                     {isLoadingFile ? (
-                        <div className="flex items-center justify-center h-full text-zinc-500">
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
                             Loading...
                         </div>
                     ) : activeFile && fileContents[activeFile] !== undefined ? (
@@ -274,11 +274,10 @@ export function CodeEditor({
                                 padding: { top: 16 },
                                 readOnly: true,
                                 domReadOnly: true,
-                                scrollBeyondLastLine: false,
                             }}
                         />
                     ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                             <p className="text-sm">Select a file to edit</p>
                         </div>
                     )}

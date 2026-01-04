@@ -19,20 +19,20 @@ function ToolStep({ part }: { part: MessagePart & { type: 'tool' } }) {
     const isRunning = part.status === 'running'
 
     return (
-        <div className="flex items-center gap-2 py-1.5 px-3 bg-zinc-900/50 rounded-lg border border-zinc-800/50 text-xs">
+        <div className="flex items-center gap-2 py-1.5 px-3 bg-secondary/20 rounded-lg border border-border/50 text-xs">
             {isRunning ? (
-                <Loader2 className="h-3.5 w-3.5 text-orange-500 animate-spin" />
+                <Loader2 className="h-3.5 w-3.5 text-primary animate-spin" />
             ) : (
-                <FileCode className="h-3.5 w-3.5 text-zinc-500" />
+                <FileCode className="h-3.5 w-3.5 text-muted-foreground" />
             )}
             <span className={cn(
                 "font-medium",
-                isRunning ? "text-orange-400" : "text-zinc-400"
+                isRunning ? "text-primary" : "text-muted-foreground"
             )}>
                 {part.title}
             </span>
             {!isRunning && (
-                <Check className="h-3 w-3 text-emerald-500 ml-auto" />
+                <Check className="h-3 w-3 text-chart-2 ml-auto" />
             )}
         </div>
     )
@@ -52,7 +52,7 @@ function ToolStepsGroup({ tools }: { tools: (MessagePart & { type: 'tool' })[] }
             {hasMore && (
                 <button
                     onClick={() => setExpanded(!expanded)}
-                    className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground py-1 transition-colors"
                 >
                     {expanded ? (
                         <>
@@ -75,14 +75,14 @@ function TextContent({ content }: { content: string }) {
     if (!content.trim()) return null
 
     return (
-        <div className="text-sm text-zinc-300 leading-relaxed prose prose-invert prose-sm max-w-none my-2">
+        <div className="text-sm text-foreground/90 leading-relaxed prose prose-invert prose-sm max-w-none my-2">
             <ReactMarkdown
                 components={{
                     code({ className, children, ...props }) {
                         const match = /language-(\w+)/.exec(className || '')
                         const isInline = !match
                         return isInline ? (
-                            <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-orange-400 text-xs" {...props}>
+                            <code className="bg-muted px-1.5 py-0.5 rounded text-primary text-xs" {...props}>
                                 {children}
                             </code>
                         ) : (
@@ -90,7 +90,7 @@ function TextContent({ content }: { content: string }) {
                                 style={vscDarkPlus as any}
                                 language={match[1]}
                                 PreTag="div"
-                                className="rounded-lg text-xs !bg-zinc-900 !p-4 my-2"
+                                className="rounded-lg text-xs !bg-muted !p-4 my-2"
                             >
                                 {String(children).replace(/\n$/, '')}
                             </SyntaxHighlighter>
@@ -111,7 +111,7 @@ export function MessageBubble({ role, content, parts = [], steps = [] }: Message
     if (role === 'user') {
         return (
             <div className="flex justify-end max-w-[80%] ml-auto">
-                <div className="rounded-2xl px-4 py-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white text-sm">
+                <div className="rounded-2xl px-4 py-3 bg-primary text-primary-foreground text-sm">
                     {content}
                 </div>
             </div>

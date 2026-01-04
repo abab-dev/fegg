@@ -69,10 +69,10 @@ export function ProjectsSheet({
 
     return (
         <Sheet open={open} onOpenChange={onOpenChange}>
-            <SheetContent side="left" className="w-72 bg-[#0c0c0e] border-zinc-800 p-0 text-white">
-                <SheetHeader className="p-4 border-b border-zinc-800">
-                    <SheetTitle className="text-left text-white flex items-center gap-2">
-                        <div className="h-6 w-6 rounded bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center font-bold text-white text-xs">
+            <SheetContent side="left" className="w-72 bg-sidebar border-sidebar-border p-0 text-sidebar-foreground">
+                <SheetHeader className="p-4 border-b border-sidebar-border">
+                    <SheetTitle className="text-left text-foreground flex items-center gap-2">
+                        <div className="h-6 w-6 rounded bg-primary flex items-center justify-center font-bold text-primary-foreground text-xs">
                             F
                         </div>
                         Projects
@@ -81,13 +81,13 @@ export function ProjectsSheet({
                 <div className="p-3">
                     <Button
                         onClick={onCreateSession}
-                        className="w-full justify-start gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border-none h-9 text-sm"
+                        className="w-full justify-start gap-2 bg-sidebar-accent hover:bg-sidebar-accent/80 text-sidebar-foreground border-none h-9 text-sm"
                     >
                         <Plus className="h-4 w-4" /> New Project
                     </Button>
                 </div>
                 <div className="flex-1 overflow-auto px-2">
-                    <div className="text-xs text-zinc-500 px-2 pb-2 font-medium">Recent</div>
+                    <div className="text-xs text-muted-foreground px-2 pb-2 font-medium">Recent</div>
                     {sessions.map((session) => (
                         <div
                             key={session.id}
@@ -95,8 +95,8 @@ export function ProjectsSheet({
                             className={cn(
                                 "group relative w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between cursor-pointer",
                                 session.id === currentSessionId
-                                    ? "bg-zinc-800 text-white"
-                                    : "text-zinc-400 hover:text-white hover:bg-zinc-800/50"
+                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
                             )}
                         >
                             <div className="flex items-center gap-2 overflow-hidden flex-1">
@@ -106,7 +106,7 @@ export function ProjectsSheet({
                                         <Input
                                             value={editName}
                                             onChange={e => setEditName(e.target.value)}
-                                            className="h-6 text-xs bg-zinc-900 border-zinc-700 min-w-0"
+                                            className="h-6 text-xs bg-background border-input min-w-0"
                                             autoFocus
                                             onKeyDown={e => {
                                                 if (e.key === 'Enter') saveRename(e)
@@ -137,7 +137,7 @@ export function ProjectsSheet({
                                             <MoreVertical className="h-3 w-3" />
                                         </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 text-white w-32">
+                                    <DropdownMenuContent align="end" className="bg-popover border-border text-popover-foreground w-32">
                                         <DropdownMenuItem onClick={(e) => startRenaming(session, e)}>
                                             <Pencil className="mr-2 h-3 w-3" /> Rename
                                         </DropdownMenuItem>

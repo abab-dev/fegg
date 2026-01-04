@@ -401,7 +401,7 @@ export function Dashboard() {
     const currentSession = chatStore.sessions.find(s => s.id === chatStore.currentSessionId)
 
     return (
-        <div className="flex h-screen w-full bg-[#09090b] text-zinc-100 overflow-hidden font-sans">
+        <div className="flex h-screen w-full bg-background text-foreground overflow-hidden font-sans">
             <Header
                 user={user}
                 currentSession={currentSession || null}

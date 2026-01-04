@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Loader2, Sparkles } from "lucide-react"
 
+import { ModeToggle } from "@/components/mode-toggle"
+
 export function AuthScreen() {
     const setAuth = useAuthStore((state) => state.setAuth)
     const [isLoading, setIsLoading] = useState(false)
@@ -53,16 +55,21 @@ export function AuthScreen() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-background relative overflow-hidden">
+            {/* Theme Toggle */}
+            <div className="absolute top-4 right-4 z-50">
+                <ModeToggle />
+            </div>
+
             {/* Background gradients */}
             <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full blur-3xl opacity-50 animate-blob" />
             <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-secondary/20 rounded-full blur-3xl opacity-50 animate-blob animation-delay-2000" />
 
-            <Card className="w-[400px] z-10 glass-dark border-border/50 shadow-2xl">
+            <Card className="w-[400px] z-10 bg-card/95 backdrop-blur-sm border-border shadow-2xl">
                 <CardHeader className="text-center">
                     <div className="mx-auto bg-primary/10 p-3 rounded-full w-fit mb-2">
                         <Sparkles className="w-6 h-6 text-primary" />
                     </div>
-                    <CardTitle className="text-2xl font-bold bg-gradient-to-r from-primary to-purple-400 bg-clip-text text-transparent">
+                    <CardTitle className="text-2xl font-bold text-foreground">
                         FeGG
                     </CardTitle>
                     <CardDescription>
