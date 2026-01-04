@@ -138,8 +138,30 @@ export function Dashboard() {
         }
     }
 
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
     function updateFileContent(path: string, content: string) {
-        // View-only mode - no saving
+        // 1. Update local state immediately for UI response
+        setFileContents(prev => ({ ...prev, [path]: content }))
+
+        // 2. Clear pending save
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current)
+        }
+
+        // 3. Debounce save to backend
+        saveTimeoutRef.current = setTimeout(async () => {
+            if (!chatStore.currentSessionId) return
+
+            try {
+                await api.put(`sessions/${chatStore.currentSessionId}/files/${encodeURIComponent(path)}`, {
+                    json: { content }
+                })
+                // HMR in the sandbox should pick this up automatically!
+            } catch (error) {
+                toast.error("Failed to save changes")
+            }
+        }, 1000) // 1 second debounce
     }
 
     // Session operations
