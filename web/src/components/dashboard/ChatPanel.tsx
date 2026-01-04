@@ -10,6 +10,7 @@ import { MessageBubble } from "./MessageBubble"
 interface Message {
     role: 'user' | 'assistant'
     content: string
+    parts?: any[]
     steps?: any[]
 }
 
@@ -55,6 +56,7 @@ export function ChatPanel({
                                 key={idx}
                                 role={msg.role}
                                 content={msg.content}
+                                parts={msg.parts}
                                 steps={msg.steps}
                             />
                         ))}

@@ -189,11 +189,32 @@ export function Dashboard() {
                             const data = JSON.parse(line.slice(6))
 
                             if (!hasAssistantMessage && data.type !== 'done' && data.type !== 'error') {
-                                chatStore.addMessage({ role: "assistant", content: "", steps: [] })
+                                chatStore.addMessage({ role: "assistant", content: "", parts: [] })
                                 hasAssistantMessage = true
                             }
 
                             switch (data.type) {
+                                case "token":
+                                    setIsThinking(false)
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg?.role === 'assistant') {
+                                            const parts = lastMsg.parts || []
+                                            const lastPart = parts[parts.length - 1] as any
+                                            // Append to existing text part (unless it's marked complete from user_message)
+                                            if (lastPart?.type === 'text' && !lastPart.isComplete) {
+                                                lastPart.content += data.content
+                                            } else {
+                                                parts.push({ type: 'text', content: data.content })
+                                            }
+                                            lastMsg.parts = parts
+                                            lastMsg.content += data.content
+                                        }
+                                        return { messages: msgs }
+                                    })
+                                    break
+
                                 case "tool_start":
                                     setIsThinking(false)
                                     if (data.step) {
@@ -201,6 +222,15 @@ export function Dashboard() {
                                             const msgs = [...state.messages]
                                             const lastMsg = msgs[msgs.length - 1]
                                             if (lastMsg?.role === 'assistant') {
+                                                const parts = lastMsg.parts || []
+                                                parts.push({
+                                                    type: 'tool',
+                                                    id: data.step.id,
+                                                    title: data.step.title,
+                                                    status: 'running'
+                                                })
+                                                lastMsg.parts = parts
+                                                // Keep steps for compat
                                                 lastMsg.steps = [...(lastMsg.steps || []), data.step]
                                             }
                                             return { messages: msgs }
@@ -208,23 +238,18 @@ export function Dashboard() {
                                     }
                                     break
 
-                                case "token":
-                                    setIsThinking(false)
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg?.role === 'assistant') {
-                                            lastMsg.content += data.content
-                                        }
-                                        return { messages: msgs }
-                                    })
-                                    break
-
                                 case "tool_end":
                                     if (data.step_id) {
                                         useChatStore.setState(state => {
                                             const msgs = [...state.messages]
                                             const lastMsg = msgs[msgs.length - 1]
+                                            if (lastMsg?.parts) {
+                                                lastMsg.parts = lastMsg.parts.map(p =>
+                                                    p.type === 'tool' && p.id === data.step_id
+                                                        ? { ...p, status: 'done' as const }
+                                                        : p
+                                                )
+                                            }
                                             if (lastMsg?.steps) {
                                                 lastMsg.steps = lastMsg.steps.map(s =>
                                                     s.id === data.step_id ? { ...s, status: "done" } : s
@@ -242,12 +267,17 @@ export function Dashboard() {
                                         const msgs = [...state.messages]
                                         const lastMsg = msgs[msgs.length - 1]
                                         if (lastMsg?.role === 'assistant') {
-                                            const hasPreview = lastMsg.steps?.some(s => s.type === 'preview')
+                                            const parts = lastMsg.parts || []
+                                            const hasPreview = parts.some(p => p.type === 'preview')
                                             if (!hasPreview) {
-                                                lastMsg.steps = [
-                                                    ...(lastMsg.steps || []),
-                                                    { id: `preview-${Date.now()}`, type: 'preview', title: 'Preview', url: data.url, status: 'done' }
-                                                ]
+                                                parts.push({
+                                                    type: 'preview',
+                                                    id: `preview-${Date.now()}`,
+                                                    title: 'Preview',
+                                                    url: data.url,
+                                                    status: 'done'
+                                                })
+                                                lastMsg.parts = parts
                                             }
                                         }
                                         return { messages: msgs }
@@ -255,11 +285,16 @@ export function Dashboard() {
                                     break
 
                                 case "user_message":
+                                    // user_message is a complete message from show_user_message tool
+                                    // Mark it complete so tokens don't append to it
                                     setIsThinking(false)
                                     useChatStore.setState(state => {
                                         const msgs = [...state.messages]
                                         const lastMsg = msgs[msgs.length - 1]
                                         if (lastMsg?.role === 'assistant') {
+                                            const parts = lastMsg.parts || []
+                                            parts.push({ type: 'text', content: data.content, isComplete: true } as any)
+                                            lastMsg.parts = parts
                                             lastMsg.content += data.content
                                         }
                                         return { messages: msgs }

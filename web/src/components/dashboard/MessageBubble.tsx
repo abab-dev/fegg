@@ -4,22 +4,110 @@ import { cn } from "@/lib/utils"
 import ReactMarkdown from 'react-markdown'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { ToolSteps } from './ToolSteps'
-
-interface Step {
-    id?: string
-    type: string
-    title: string
-    status: string
-}
+import { MessagePart } from '@/store/chat'
+import { FileCode, Check, Loader2, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState } from 'react'
 
 interface MessageBubbleProps {
     role: 'user' | 'assistant'
     content: string
-    steps?: Step[]
+    parts?: MessagePart[]
+    steps?: any[]  // Legacy support
 }
 
-export function MessageBubble({ role, content, steps = [] }: MessageBubbleProps) {
+function ToolStep({ part }: { part: MessagePart & { type: 'tool' } }) {
+    const isRunning = part.status === 'running'
+
+    return (
+        <div className="flex items-center gap-2 py-1.5 px-3 bg-zinc-900/50 rounded-lg border border-zinc-800/50 text-xs">
+            {isRunning ? (
+                <Loader2 className="h-3.5 w-3.5 text-orange-500 animate-spin" />
+            ) : (
+                <FileCode className="h-3.5 w-3.5 text-zinc-500" />
+            )}
+            <span className={cn(
+                "font-medium",
+                isRunning ? "text-orange-400" : "text-zinc-400"
+            )}>
+                {part.title}
+            </span>
+            {!isRunning && (
+                <Check className="h-3 w-3 text-emerald-500 ml-auto" />
+            )}
+        </div>
+    )
+}
+
+function ToolStepsGroup({ tools }: { tools: (MessagePart & { type: 'tool' })[] }) {
+    const [expanded, setExpanded] = useState(false)
+    const showCount = 3
+    const hasMore = tools.length > showCount
+    const visibleTools = expanded ? tools : tools.slice(0, showCount)
+
+    return (
+        <div className="space-y-1.5 my-2">
+            {visibleTools.map((tool, i) => (
+                <ToolStep key={tool.id || i} part={tool} />
+            ))}
+            {hasMore && (
+                <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 py-1 transition-colors"
+                >
+                    {expanded ? (
+                        <>
+                            <ChevronUp className="h-3 w-3" />
+                            Show less
+                        </>
+                    ) : (
+                        <>
+                            <ChevronDown className="h-3 w-3" />
+                            {tools.length - showCount} more edits
+                        </>
+                    )}
+                </button>
+            )}
+        </div>
+    )
+}
+
+function TextContent({ content }: { content: string }) {
+    if (!content.trim()) return null
+
+    return (
+        <div className="text-sm text-zinc-300 leading-relaxed prose prose-invert prose-sm max-w-none my-2">
+            <ReactMarkdown
+                components={{
+                    code({ className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const isInline = !match
+                        return isInline ? (
+                            <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-orange-400 text-xs" {...props}>
+                                {children}
+                            </code>
+                        ) : (
+                            <SyntaxHighlighter
+                                style={vscDarkPlus as any}
+                                language={match[1]}
+                                PreTag="div"
+                                className="rounded-lg text-xs !bg-zinc-900 !p-4 my-2"
+                            >
+                                {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                        )
+                    },
+                    p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                    ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
+                    ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
+                }}
+            >
+                {content}
+            </ReactMarkdown>
+        </div>
+    )
+}
+
+export function MessageBubble({ role, content, parts = [], steps = [] }: MessageBubbleProps) {
     if (role === 'user') {
         return (
             <div className="flex justify-end max-w-[80%] ml-auto">
@@ -30,41 +118,64 @@ export function MessageBubble({ role, content, steps = [] }: MessageBubbleProps)
         )
     }
 
+    // Group consecutive tool parts together
+    const groupedParts: (MessagePart | { type: 'tool-group'; tools: (MessagePart & { type: 'tool' })[] })[] = []
+    let currentToolGroup: (MessagePart & { type: 'tool' })[] = []
+
+    for (const part of parts) {
+        if (part.type === 'tool') {
+            currentToolGroup.push(part)
+        } else {
+            if (currentToolGroup.length > 0) {
+                groupedParts.push({ type: 'tool-group', tools: currentToolGroup })
+                currentToolGroup = []
+            }
+            groupedParts.push(part)
+        }
+    }
+    if (currentToolGroup.length > 0) {
+        groupedParts.push({ type: 'tool-group', tools: currentToolGroup })
+    }
+
+    // Fallback: if no parts, render legacy content
+    if (parts.length === 0 && (content || steps.length > 0)) {
+        return (
+            <div className="flex gap-3 max-w-[90%]">
+                <div className="flex-1 min-w-0">
+                    {steps.length > 0 && (
+                        <ToolStepsGroup tools={steps.map(s => ({
+                            type: 'tool' as const,
+                            id: s.id,
+                            title: s.title,
+                            status: s.status
+                        }))} />
+                    )}
+                    {content && <TextContent content={content} />}
+                </div>
+            </div>
+        )
+    }
+
     return (
         <div className="flex gap-3 max-w-[90%]">
             <div className="flex-1 min-w-0">
-                <ToolSteps steps={steps} />
-                {content && (
-                    <div className="text-sm text-zinc-300 leading-relaxed prose prose-invert prose-sm max-w-none">
-                        <ReactMarkdown
-                            components={{
-                                code({ className, children, ...props }) {
-                                    const match = /language-(\w+)/.exec(className || '')
-                                    const isInline = !match
-                                    return isInline ? (
-                                        <code className="bg-zinc-800 px-1.5 py-0.5 rounded text-orange-400 text-xs" {...props}>
-                                            {children}
-                                        </code>
-                                    ) : (
-                                        <SyntaxHighlighter
-                                            style={vscDarkPlus as any}
-                                            language={match[1]}
-                                            PreTag="div"
-                                            className="rounded-lg text-xs !bg-zinc-900 !p-4 my-2"
-                                        >
-                                            {String(children).replace(/\n$/, '')}
-                                        </SyntaxHighlighter>
-                                    )
-                                },
-                                p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
-                                ol: ({ children }) => <ol className="list-decimal pl-4 mb-2 space-y-1">{children}</ol>,
-                            }}
-                        >
-                            {content}
-                        </ReactMarkdown>
-                    </div>
-                )}
+                {groupedParts.map((part, i) => {
+                    if (part.type === 'tool-group') {
+                        return <ToolStepsGroup key={i} tools={part.tools} />
+                    }
+                    if (part.type === 'text') {
+                        return <TextContent key={i} content={part.content} />
+                    }
+                    if (part.type === 'preview') {
+                        return (
+                            <div key={i} className="flex items-center gap-2 py-1.5 px-3 bg-emerald-900/20 rounded-lg border border-emerald-800/50 text-xs my-2">
+                                <Check className="h-3.5 w-3.5 text-emerald-500" />
+                                <span className="text-emerald-400 font-medium">Preview Ready</span>
+                            </div>
+                        )
+                    }
+                    return null
+                })}
             </div>
         </div>
     )

@@ -1,11 +1,18 @@
 import { create } from 'zustand';
 
+// A "part" is either text or a tool step, stored in order
+export type MessagePart =
+    | { type: 'text'; content: string }
+    | { type: 'tool'; id: string; title: string; status: 'running' | 'done' | 'error' }
+    | { type: 'preview'; id: string; title: string; url: string; status: 'done' }
+
 export interface Message {
     id?: string;
     role: 'user' | 'assistant';
-    content: string;
+    content: string;  // Keep for backwards compat / user messages
     timestamp?: string;
-    steps?: Step[]; // Persisted tool/status steps
+    parts?: MessagePart[];  // New: ordered list of text chunks and tool steps
+    steps?: Step[];  // Deprecated but keep for loading old messages
 }
 
 export interface Step {
@@ -14,7 +21,7 @@ export interface Step {
     title: string
     status: "running" | "done" | "error"
     detail?: string
-    url?: string  // For preview steps
+    url?: string
 }
 
 export interface Session {
