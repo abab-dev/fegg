@@ -118,7 +118,11 @@ async def stream_events(
             tool_step_map = {}
 
             async for event in stream_agent_events(user_id, session_id, message):
-                if event["type"] == "user_message":
+                if event["type"] == "token":
+                    assistant_content += event.get("content", "")
+                    yield f"data: {json.dumps(event)}\n\n"
+
+                elif event["type"] == "user_message":
                     assistant_content += event.get("content", "")
                     yield f"data: {json.dumps(event)}\n\n"
                 

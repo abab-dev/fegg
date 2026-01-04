@@ -118,7 +118,13 @@ async def stream_agent_events(
     ):
         event_type = event.get("event")
 
-        if event_type == "on_tool_start":
+        # Stream agent's text tokens in real-time
+        if event_type == "on_chat_model_stream":
+            chunk = event.get("data", {}).get("chunk")
+            if chunk and hasattr(chunk, "content") and chunk.content:
+                yield {"type": "token", "content": chunk.content}
+
+        elif event_type == "on_tool_start":
             tool_name = event.get("name", "unknown")
             args = event.get("data", {}).get("input", {})
 

@@ -208,6 +208,18 @@ export function Dashboard() {
                                     }
                                     break
 
+                                case "token":
+                                    setIsThinking(false)
+                                    useChatStore.setState(state => {
+                                        const msgs = [...state.messages]
+                                        const lastMsg = msgs[msgs.length - 1]
+                                        if (lastMsg?.role === 'assistant') {
+                                            lastMsg.content += data.content
+                                        }
+                                        return { messages: msgs }
+                                    })
+                                    break
+
                                 case "tool_end":
                                     if (data.step_id) {
                                         useChatStore.setState(state => {
