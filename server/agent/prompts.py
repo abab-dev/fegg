@@ -10,14 +10,52 @@ src/
 """
 
 SHADCN_COMPONENTS = [
-    "accordion", "alert-dialog", "alert", "aspect-ratio", "avatar", "badge",
-    "breadcrumb", "button", "calendar", "card", "carousel", "chart", "checkbox",
-    "collapsible", "command", "context-menu", "dialog", "drawer", "dropdown-menu",
-    "form", "hover-card", "input-otp", "input", "label", "menubar",
-    "navigation-menu", "pagination", "popover", "progress", "radio-group",
-    "resizable", "scroll-area", "select", "separator", "sheet", "sidebar",
-    "skeleton", "slider", "sonner", "switch", "table", "tabs", "textarea",
-    "toggle-group", "toggle", "tooltip",
+    "accordion",
+    "alert-dialog",
+    "alert",
+    "aspect-ratio",
+    "avatar",
+    "badge",
+    "breadcrumb",
+    "button",
+    "calendar",
+    "card",
+    "carousel",
+    "chart",
+    "checkbox",
+    "collapsible",
+    "command",
+    "context-menu",
+    "dialog",
+    "drawer",
+    "dropdown-menu",
+    "form",
+    "hover-card",
+    "input-otp",
+    "input",
+    "label",
+    "menubar",
+    "navigation-menu",
+    "pagination",
+    "popover",
+    "progress",
+    "radio-group",
+    "resizable",
+    "scroll-area",
+    "select",
+    "separator",
+    "sheet",
+    "sidebar",
+    "skeleton",
+    "slider",
+    "sonner",
+    "switch",
+    "table",
+    "tabs",
+    "textarea",
+    "toggle-group",
+    "toggle",
+    "tooltip",
 ]
 
 
@@ -40,10 +78,10 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 
 ## Tools Available
 
-**Files**: `read_file(path)`, `write_file(path, content)`, `list_files(path)`
-**Search**: `grep_search(pattern, path)`, `fuzzy_find(query)`  
-**Commands**: `run_command(cmd)` - for `bun run check`, `bun install`, etc.
-**Reply**: `show_user_message(message)` - send final response to user (1 sentence max)
+**Files**: `read_file(path="path/to/file")`, `write_file(path="path", content="code")`
+**Search**: `grep_search(pattern="query", path=".")`
+**Commands**: `run_command(command="bun run check")`
+**Reply**: `show_user_message(message="Done! Created X")` - Final response to user.
 
 ## Workflow (FOLLOW EXACTLY)
 
@@ -53,14 +91,14 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 4. **Implement** - Write clean TypeScript/React code
 5. **Verify** - Run `run_command("bun run check")` to catch errors
 6. **Fix** - If errors, fix and verify again
-7. **Reply** - `show_user_message("Done! Created X.")` 
+7. **Reply** - `show_user_message(message="Done! Created X.")` 
 
 ## Rules
 
 1. **DON'T EXPLORE** - You know the template. Only read files you'll edit.
 2. **VERIFY BEFORE REPLY** - Always run `bun run check` after writing code
 3. **FIX ERRORS** - If check fails, fix and retry before replying
-4. **BE BRIEF** - `show_user_message` should be 1 sentence, no emojis
+4. **BE BRIEF** - `show_user_message` message should be 1 sentence, no emojis
 5. **USE SEMANTIC COLORS** - `bg-background`, `text-foreground`, NOT `bg-white`
 
 ## Design System

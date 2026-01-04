@@ -23,9 +23,13 @@ class TokenResponse(BaseModel):
 class SessionCreate(BaseModel):
     pass  # No body needed, just creates a new session
 
+class SessionUpdate(BaseModel):
+    title: Optional[str] = None
+
 class SessionResponse(BaseModel):
     id: str
     user_id: str
+    title: Optional[str] = None
     sandbox_id: Optional[str]
     preview_url: Optional[str]
     status: Literal["pending", "creating", "ready", "busy", "error", "terminated"]

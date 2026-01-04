@@ -41,6 +41,7 @@ class Session(Base):
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     sandbox_id = Column(String, nullable=True)
     preview_url = Column(String, nullable=True)
+    title = Column(String, nullable=True)
     status = Column(String, default="creating")
     created_at = Column(DateTime, default=datetime.utcnow)
     last_activity = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

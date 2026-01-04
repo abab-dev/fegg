@@ -23,6 +23,7 @@ interface HeaderProps {
     onMenuClick: () => void
     onSelectSession: (id: string) => void
     onViewAllProjects: () => void
+    onDownload?: () => void
     onLogout: () => void
 }
 
@@ -33,6 +34,7 @@ export function Header({
     onMenuClick,
     onSelectSession,
     onViewAllProjects,
+    onDownload,
     onLogout,
 }: HeaderProps) {
     return (
@@ -84,8 +86,34 @@ export function Header({
                 )}
             </div>
 
-            {/* Right: User */}
+            {/* Right: Actions & User */}
             <div className="flex items-center gap-2">
+                {currentSession && onDownload && (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onDownload}
+                        className="h-8 gap-2 text-zinc-400 hover:text-white px-2 hidden sm:flex"
+                    >
+                        {/* We need to import Download icon */}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="16"
+                            height="16"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            className="lucide lucide-download"
+                        >
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" />
+                        </svg>
+                        <span className="text-xs">Download</span>
+                    </Button>
+                )}
+
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 gap-2 text-zinc-400 hover:text-white px-2">

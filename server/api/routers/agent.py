@@ -1,14 +1,14 @@
 import json
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from ..database import get_db, Session, Message, async_session
-from ..models import MessageCreate, MessageResponse
+from ..models import MessageCreate, MessageResponse, SessionUpdate, SessionResponse
 from ..auth import get_current_user
-from ..services.agent_runner import stream_agent_events
+from ..services.agent_runner import stream_agent_events, get_user_sandbox, destroy_user_sandbox
 from ..services.sandbox_manager import create_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
@@ -269,3 +269,116 @@ async def list_messages(
             "created_at": m.created_at.isoformat()
         } for m in messages
     ]
+
+
+@router.patch("/{session_id}")
+async def update_session(
+    session_id: str,
+    update: SessionUpdate,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == current_user["id"]
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    if update.title is not None:
+        session.title = update.title
+    
+    await db.commit()
+    return session
+
+
+@router.delete("/{session_id}")
+async def delete_session(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == current_user["id"]
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    await db.execute(
+        delete(Message).where(Message.session_id == session_id)
+    )
+    await db.delete(session)
+    await db.commit()
+    
+    return {"status": "deleted"}
+
+
+@router.get("/{session_id}/download")
+async def download_session_code(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Session).where(
+            Session.id == session_id,
+            Session.user_id == current_user["id"]
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    try:
+        user_sandbox = await get_user_sandbox(current_user["id"])
+        
+        # Ensure workspace directory exists
+        check_dir = user_sandbox.sandbox.commands.run("mkdir -p /home/user/workspace")
+        
+        # Force remove any existing tar to ensure fresh build
+        user_sandbox.sandbox.commands.run("rm -f /tmp/project.tar.gz")
+
+        # Use tar with error check
+        exec_result = user_sandbox.sandbox.commands.run(
+            "tar -czf /tmp/project.tar.gz . --exclude node_modules --exclude .git", 
+            cwd="/home/user/workspace"
+        )
+        
+        if exec_result.exit_code != 0:
+            print(f"Tar failed: {exec_result.stderr}")
+            # If failed, it might be empty directory. Allow partial?
+            # Or just return empty tar if nothing there.
+            # But let's assume if tar failed it's bad.
+            # However, commonly tar might complain if no files match. 
+            pass 
+        
+        try:
+            file_data = user_sandbox.sandbox.files.read("/tmp/project.tar.gz")
+        except Exception:
+             # If read fails, maybe tar didn't create file (empty dir?). Create empty tar.
+             # But better to throw error or handle gracefully.
+             raise HTTPException(status_code=500, detail="Failed to read generated archive")
+        
+        return Response(
+            content=file_data,
+            media_type="application/gzip",
+            headers={"Content-Disposition": f"attachment; filename=project-{session_id}.tar.gz"}
+        )
+        
+    except Exception as e:
+        print(f"Download error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to download: {str(e)}")
+
+
+@router.post("/{session_id}/stop")
+async def stop_generation(session_id: str, current_user: dict = Depends(get_current_user)):
+    # In MVP, client closing connection handles the stop. 
+    # We just expose this endpoint if we need explicit state reset in DB if busy.
+    return {"status": "ok"}

@@ -45,9 +45,12 @@ interface ChatState {
     isStreaming: boolean;
 
     // Actions
+    // Actions
     setSessions: (sessions: Session[]) => void;
     setCurrentSession: (id: string | null) => void;
     setPreviewUrl: (url: string | null) => void;
+    updateSession: (id: string, updates: Partial<Session>) => void;
+    deleteSession: (id: string) => void;
     setMessages: (messages: Message[]) => void;
     addMessage: (message: Message) => void;
     updateLastMessage: (content: string) => void;
@@ -66,6 +69,18 @@ export const useChatStore = create<ChatState>((set) => ({
     setSessions: (sessions) => set({ sessions }),
     setCurrentSession: (id) => set({ currentSessionId: id }),
     setPreviewUrl: (url) => set({ currentPreviewUrl: url }),
+
+    updateSession: (id, updates) => set((state) => ({
+        sessions: state.sessions.map(s => s.id === id ? { ...s, ...updates } : s)
+    })),
+
+    deleteSession: (id) => set((state) => ({
+        sessions: state.sessions.filter(s => s.id !== id),
+        currentSessionId: state.currentSessionId === id ? null : state.currentSessionId,
+        messages: state.currentSessionId === id ? [] : state.messages,
+        currentPreviewUrl: state.currentSessionId === id ? null : state.currentPreviewUrl
+    })),
+
     setMessages: (messages) => set({ messages }),
 
     addMessage: (message) => set((state) => ({

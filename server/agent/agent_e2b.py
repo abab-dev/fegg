@@ -124,13 +124,13 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         return message
 
     wrapped = [
-        StructuredTool.from_function(read_file, args_schema=ReadFileInput),
-        StructuredTool.from_function(write_file, args_schema=WriteFileInput),
-        StructuredTool.from_function(list_files, args_schema=ListFilesInput),
-        StructuredTool.from_function(grep_search, args_schema=GrepInput),
-        StructuredTool.from_function(fuzzy_find, args_schema=FuzzyFindInput),
-        StructuredTool.from_function(run_command, args_schema=RunCommandInput),
-        StructuredTool.from_function(show_user_message, args_schema=ShowUserMessageInput),
+        StructuredTool.from_function(read_file, name="read_file", args_schema=ReadFileInput),
+        StructuredTool.from_function(write_file, name="write_file", args_schema=WriteFileInput),
+        StructuredTool.from_function(list_files, name="list_files", args_schema=ListFilesInput),
+        StructuredTool.from_function(grep_search, name="grep_search", args_schema=GrepInput),
+        StructuredTool.from_function(fuzzy_find, name="fuzzy_find", args_schema=FuzzyFindInput),
+        StructuredTool.from_function(run_command, name="run_command", args_schema=RunCommandInput),
+        StructuredTool.from_function(show_user_message, name="show_user_message", args_schema=ShowUserMessageInput),
     ]
 
     return wrapped

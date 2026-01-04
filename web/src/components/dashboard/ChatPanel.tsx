@@ -4,7 +4,7 @@ import { RefObject } from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Rocket, ArrowUp } from "lucide-react"
+import { Rocket, ArrowUp, Square } from "lucide-react"
 import { MessageBubble } from "./MessageBubble"
 
 interface Message {
@@ -23,6 +23,7 @@ interface ChatPanelProps {
     scrollRef: RefObject<HTMLDivElement>
     onInputChange: (value: string) => void
     onSend: () => void
+    onStop: () => void
 }
 
 export function ChatPanel({
@@ -34,6 +35,7 @@ export function ChatPanel({
     scrollRef,
     onInputChange,
     onSend,
+    onStop,
 }: ChatPanelProps) {
     return (
         <div className="h-full w-full flex flex-col bg-gradient-to-b from-[#0c0c0e] to-[#09090b] border-r border-zinc-800/50">
@@ -94,17 +96,27 @@ export function ChatPanel({
                             disabled={isLoading || !hasSession}
                         />
                         <div className="flex justify-end p-2 pt-0">
-                            <Button
-                                size="sm"
-                                className={cn(
-                                    "h-8 w-8 rounded-lg transition-all",
-                                    input.trim() ? "bg-orange-600 hover:bg-orange-500 text-white" : "bg-zinc-800 text-zinc-500"
-                                )}
-                                onClick={onSend}
-                                disabled={isLoading || !input.trim() || !hasSession}
-                            >
-                                <ArrowUp className="h-4 w-4" />
-                            </Button>
+                            {isLoading ? (
+                                <Button
+                                    size="sm"
+                                    className="h-8 w-8 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all"
+                                    onClick={onStop}
+                                >
+                                    <Square className="h-4 w-4 fill-current" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    size="sm"
+                                    className={cn(
+                                        "h-8 w-8 rounded-lg transition-all",
+                                        input.trim() ? "bg-orange-600 hover:bg-orange-500 text-white" : "bg-zinc-800 text-zinc-500"
+                                    )}
+                                    onClick={onSend}
+                                    disabled={isLoading || !input.trim() || !hasSession}
+                                >
+                                    <ArrowUp className="h-4 w-4" />
+                                </Button>
+                            )}
                         </div>
                     </div>
                 </div>

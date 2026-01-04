@@ -24,6 +24,21 @@ export function Dashboard() {
     const [iframeKey, setIframeKey] = useState(0)
     const [isThinking, setIsThinking] = useState(false)
     const [sessionsOpen, setSessionsOpen] = useState(false)
+    const abortControllerRef = useRef<AbortController | null>(null)
+
+    function stopGeneration() {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort()
+            abortControllerRef.current = null
+        }
+        setIsThinking(false)
+        chatStore.setLoading(false)
+        chatStore.setStreaming(false)
+        if (chatStore.currentSessionId) {
+            api.post(`sessions/${chatStore.currentSessionId}/stop`).catch(() => { })
+        }
+        toast.info("Generation stopped")
+    }
 
     // Code editor state
     const [rightPanel, setRightPanel] = useState<'preview' | 'code'>('preview')
@@ -154,6 +169,39 @@ export function Dashboard() {
         }
     }
 
+    async function renameSession(id: string, newTitle: string) {
+        try {
+            await api.patch(`sessions/${id}`, {
+                json: { title: newTitle }
+            })
+            chatStore.updateSession(id, { title: newTitle, name: newTitle })
+        } catch (error) {
+            toast.error("Failed to rename session")
+        }
+    }
+
+    async function deleteSession(id: string) {
+        if (!confirm("Are you sure you want to delete this project?")) return
+
+        try {
+            await api.delete(`sessions/${id}`)
+            chatStore.deleteSession(id)
+
+            // Select another session if current was deleted
+            if (chatStore.currentSessionId === id || chatStore.sessions.length <= 1) {
+                const remaining = chatStore.sessions.filter(s => s.id !== id)
+                if (remaining.length > 0) {
+                    selectSession(remaining[0].id)
+                } else {
+                    // Create new if none left
+                    createSession()
+                }
+            }
+        } catch (error) {
+            toast.error("Failed to delete session")
+        }
+    }
+
     // Send message with SSE streaming
     async function sendMessage() {
         if (!input.trim() || !chatStore.currentSessionId || chatStore.isLoading) return
@@ -172,7 +220,12 @@ export function Dashboard() {
 
             const streamUrl = res.stream_url
 
+            if (abortControllerRef.current) abortControllerRef.current.abort()
+            const controller = new AbortController()
+            abortControllerRef.current = controller
+
             const response = await fetch(`http://localhost:8000${streamUrl}`, {
+                signal: controller.signal,
                 headers: {
                     "Authorization": `Bearer ${token}`
                 }
@@ -309,13 +362,40 @@ export function Dashboard() {
                 }
             }
 
-        } catch (error) {
+        } catch (error: any) {
+            if (error.name === 'AbortError') return
             console.error(error)
             toast.error("Failed to send message")
             setIsThinking(false)
             chatStore.setLoading(false)
             chatStore.setStreaming(false)
+        } finally {
+            abortControllerRef.current = null
         }
+    }
+
+    async function downloadProject() {
+        if (!chatStore.currentSessionId) return
+
+        toast.promise(
+            (async () => {
+                const response = await api.get(`sessions/${chatStore.currentSessionId}/download`)
+                const blob = await response.blob()
+                const url = window.URL.createObjectURL(blob)
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `project-${chatStore.currentSessionId}.tar.gz`
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                window.URL.revokeObjectURL(url)
+            })(),
+            {
+                loading: 'Preparing download...',
+                success: 'Download started',
+                error: 'Failed to download project'
+            }
+        )
     }
 
     const currentSession = chatStore.sessions.find(s => s.id === chatStore.currentSessionId)
@@ -329,6 +409,7 @@ export function Dashboard() {
                 onMenuClick={() => setSessionsOpen(true)}
                 onSelectSession={selectSession}
                 onViewAllProjects={() => setSessionsOpen(true)}
+                onDownload={downloadProject}
                 onLogout={logout}
             />
 
@@ -339,6 +420,8 @@ export function Dashboard() {
                 currentSessionId={chatStore.currentSessionId}
                 onSelectSession={selectSession}
                 onCreateSession={createSession}
+                onRenameSession={renameSession}
+                onDeleteSession={deleteSession}
             />
 
             {/* Main Content */}
@@ -354,6 +437,7 @@ export function Dashboard() {
                             scrollRef={scrollRef as any}
                             onInputChange={setInput}
                             onSend={sendMessage}
+                            onStop={stopGeneration}
                         />
                     </ResizablePanel>
 
