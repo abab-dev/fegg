@@ -16,7 +16,7 @@ import { ProjectsSheet } from "./dashboard/ProjectsSheet"
 import { ChatPanel } from "./dashboard/ChatPanel"
 import { PreviewPanel } from "./dashboard/PreviewPanel"
 
-export function Dashboard() {
+export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
     const { user, logout, token } = useAuthStore()
     const chatStore = useChatStore()
     const [input, setInput] = useState("")
@@ -25,6 +25,21 @@ export function Dashboard() {
     const [isThinking, setIsThinking] = useState(false)
     const [sessionsOpen, setSessionsOpen] = useState(false)
     const abortControllerRef = useRef<AbortController | null>(null)
+    const hasRunInitialPrompt = useRef(false)
+
+    // Handle initial prompt from landing page
+    useEffect(() => {
+        if (initialPrompt && !hasRunInitialPrompt.current) {
+            hasRunInitialPrompt.current = true
+            // Create a new session for the prompt
+            createSession().then((id) => {
+                if (id) {
+                    // Slight delay to ensure state updates
+                    setTimeout(() => sendMessage(initialPrompt), 100)
+                }
+            })
+        }
+    }, [initialPrompt])
 
     function stopGeneration() {
         if (abortControllerRef.current) {
@@ -173,8 +188,10 @@ export function Dashboard() {
             chatStore.setMessages([])
             chatStore.setPreviewUrl(null)
             setSessionsOpen(false)
+            return session.id
         } catch (error) {
             toast.error("Failed to create session")
+            return null
         }
     }
 
@@ -225,11 +242,11 @@ export function Dashboard() {
     }
 
     // Send message with SSE streaming
-    async function sendMessage() {
-        if (!input.trim() || !chatStore.currentSessionId || chatStore.isLoading) return
+    async function sendMessage(contentOverride?: string) {
+        const content = contentOverride || input
+        if (!content.trim() || !chatStore.currentSessionId || chatStore.isLoading) return
 
-        const content = input
-        setInput("")
+        if (!contentOverride) setInput("")
 
         const userMsg: Message = { role: "user", content }
         chatStore.addMessage(userMsg)

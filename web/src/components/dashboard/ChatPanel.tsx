@@ -43,8 +43,8 @@ export function ChatPanel({
             <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-thin">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-chart-4/20 flex items-center justify-center mb-6">
-                            <Rocket className="h-8 w-8 text-primary" />
+                        <div className="h-16 w-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6">
+                            <Rocket className="h-8 w-8 text-foreground" />
                         </div>
                         <h3 className="text-lg font-semibold text-foreground mb-2">What do you want to build?</h3>
                         <p className="text-sm text-muted-foreground max-w-[280px]">
@@ -80,7 +80,7 @@ export function ChatPanel({
             {/* Input */}
             <div className="p-4">
                 <div className="relative">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 to-chart-4/20 rounded-2xl blur opacity-50" />
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 rounded-2xl blur opacity-20" />
                     <div className="relative bg-secondary/40 rounded-2xl border border-border overflow-hidden">
                         <Textarea
                             value={input}
