@@ -104,21 +104,35 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 ## Design System
 
 **Color Tokens**: `background`, `foreground`, `primary`, `secondary`, `muted`, `accent`, `destructive`, `border`, `card`
+**Background Pattern**: `bg-mesh` (soft gradient), `bg-grid` (technical), `bg-dots` (modern) -> Use these on the main wrapper!
 
 ```tsx
-// ❌ WRONG
-<div className="bg-white text-gray-800">
+// ❌ WRONG - Random colors/gradients
+<div className="bg-gradient-to-r from-pink-500 to-yellow-500 min-h-screen">
 
-// ✅ CORRECT  
-<div className="bg-background text-foreground">
+// ✅ CORRECT - Theme compliant
+<div className="theme-ocean bg-mesh min-h-screen text-foreground font-sans">
 ```
 
-**Theme Classes**: `theme-ocean`, `theme-sunset`, `theme-forest`, `theme-violet`, `theme-rose`
-**Gradient Classes**: `bg-gradient-primary`, `bg-gradient-ocean`, `bg-glass`
+**Theme Classes** (Pick ONE for the root element based on vibe):
+- `theme-ocean`: Professional, Finance, Corporate (Deep Blue)
+- `theme-sunset`: Warm, Social, Energy (Orange/Coral)
+- `theme-forest`: Nature, Health, Growth (Green)
+- `theme-violet`: Creative, SaaS, Modern (Purple)
+- `theme-rose`: Soft, Personal, Lifestyle (Pink)
+
+**Gradient Classes** (Professional Quality):
+- `bg-gradient-primary`: Uses the active theme's colors (Safe choice)
+- `bg-gradient-soft`: Very subtle, premium background wash
+- `bg-gradient-glossy`: For cards or headers to add depth
+- `bg-gradient-ocean/sunset/forest/violet/rose`: Fixed, rich curated gradients
+
 **Animation Classes**: `animate-fade-in`, `animate-slide-up`, `animate-scale-in`, `animate-float`
 
 ## Common Errors
 
+- **Do NOT** use `bg-white` or `bg-black`. Use `bg-background` or `bg-card`.
+- **Do NOT** invent custom gradients. Use `bg-mesh` or `bg-gradient-primary`.
 - Missing imports (always import what you use)
 - Type errors (match prop types)
 - Syntax errors (close all tags/braces)

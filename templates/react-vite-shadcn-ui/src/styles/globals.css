@@ -23,7 +23,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  
+
   /* Color mappings for Tailwind */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -56,19 +56,29 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
+
   /* Accordion animations */
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
   }
 
   @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
   }
 }
 
@@ -158,6 +168,7 @@
   --accent-foreground: oklch(0.1 0 0);
   --ring: oklch(0.55 0.2 250);
 }
+
 .theme-ocean.dark {
   --primary: oklch(0.65 0.2 250);
   --accent: oklch(0.5 0.15 200);
@@ -171,6 +182,7 @@
   --accent-foreground: oklch(0.15 0 0);
   --ring: oklch(0.65 0.22 30);
 }
+
 .theme-sunset.dark {
   --primary: oklch(0.7 0.22 30);
   --accent: oklch(0.6 0.18 50);
@@ -184,6 +196,7 @@
   --accent-foreground: oklch(0.1 0 0);
   --ring: oklch(0.55 0.15 145);
 }
+
 .theme-forest.dark {
   --primary: oklch(0.6 0.15 145);
   --accent: oklch(0.5 0.12 160);
@@ -197,6 +210,7 @@
   --accent-foreground: oklch(0.1 0 0);
   --ring: oklch(0.55 0.25 290);
 }
+
 .theme-violet.dark {
   --primary: oklch(0.65 0.25 290);
   --accent: oklch(0.55 0.2 320);
@@ -210,6 +224,7 @@
   --accent-foreground: oklch(0.15 0 0);
   --ring: oklch(0.65 0.2 350);
 }
+
 .theme-rose.dark {
   --primary: oklch(0.7 0.2 350);
   --accent: oklch(0.6 0.15 10);
@@ -221,49 +236,75 @@
    ============================================================================= */
 
 @layer utilities {
-  /* Primary gradients - follow theme */
+
+  /* Primary gradients - cohesive with theme */
   .bg-gradient-primary {
-    background: linear-gradient(135deg, var(--primary), var(--accent));
+    background: linear-gradient(135deg, oklch(from var(--primary) l c h / 90%), oklch(from var(--accent) l c h / 80%));
   }
+
   .bg-gradient-primary-reverse {
-    background: linear-gradient(135deg, var(--accent), var(--primary));
+    background: linear-gradient(135deg, oklch(from var(--accent) l c h / 80%), oklch(from var(--primary) l c h / 90%));
   }
-  
-  /* Fixed color gradients */
+
+  /* Fixed Professional Gradients */
   .bg-gradient-ocean {
-    background: linear-gradient(135deg, oklch(0.5 0.2 250), oklch(0.6 0.18 200));
+    background: linear-gradient(135deg, #0f172a, #334155, #1e293b);
+    /* Clean Slate/Dark */
   }
+
   .bg-gradient-sunset {
-    background: linear-gradient(135deg, oklch(0.65 0.25 30), oklch(0.7 0.2 50));
+    background: linear-gradient(135deg, #431407, #7c2d12, #9a3412);
+    /* Rich Warm */
   }
+
   .bg-gradient-forest {
-    background: linear-gradient(135deg, oklch(0.5 0.15 145), oklch(0.6 0.12 160));
+    background: linear-gradient(135deg, #022c22, #064e3b, #065f46);
+    /* Deep Emerald */
   }
+
   .bg-gradient-violet {
-    background: linear-gradient(135deg, oklch(0.5 0.25 290), oklch(0.6 0.2 320));
+    background: linear-gradient(135deg, #2e1065, #4c1d95, #5b21b6);
+    /* Royal Purple */
   }
+
   .bg-gradient-rose {
-    background: linear-gradient(135deg, oklch(0.6 0.2 350), oklch(0.7 0.15 10));
+    background: linear-gradient(135deg, #831843, #be185d, #9d174d);
+    /* Sophisticated Pink */
   }
+
   .bg-gradient-midnight {
-    background: linear-gradient(135deg, oklch(0.2 0.1 270), oklch(0.15 0.05 250));
+    background: linear-gradient(180deg, #020617, #0f172a 80%);
+    /* Night Sky */
   }
+
   .bg-gradient-aurora {
-    background: linear-gradient(135deg, oklch(0.6 0.2 160), oklch(0.5 0.25 290));
+    background: linear-gradient(120deg, oklch(from var(--primary) l c h / 40%), oklch(from var(--accent) l c h / 40%), transparent 70%);
+    /* Subtle wash */
   }
-  
+
+  /* Modern Premium Effects */
+  .bg-gradient-soft {
+    background: radial-gradient(circle at top left, oklch(from var(--primary) l c h / 5%), transparent 40%),
+      radial-gradient(circle at bottom right, oklch(from var(--accent) l c h / 5%), transparent 40%);
+  }
+
+  .bg-gradient-glossy {
+    background: linear-gradient(180deg, oklch(1 0 0 / 10%) 0%, oklch(1 0 0 / 0%) 50%, oklch(0 0 0 / 5%) 100%);
+  }
+
   /* Glass/Blur effects */
   .bg-glass {
     background: oklch(1 0 0 / 10%);
     backdrop-filter: blur(12px);
     border: 1px solid oklch(1 0 0 / 20%);
   }
+
   .bg-glass-dark {
     background: oklch(0 0 0 / 20%);
     backdrop-filter: blur(12px);
     border: 1px solid oklch(1 0 0 / 10%);
   }
-  
+
   /* Gradient text */
   .text-gradient-primary {
     background: linear-gradient(135deg, var(--primary), var(--accent));
@@ -271,17 +312,50 @@
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
   .text-gradient-ocean {
     background: linear-gradient(135deg, oklch(0.6 0.2 250), oklch(0.7 0.18 200));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
   .text-gradient-sunset {
     background: linear-gradient(135deg, oklch(0.7 0.25 30), oklch(0.75 0.2 50));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+  }
+
+  /* PREMIUM BACKGROUNDS */
+
+  /* Mesh: Soft, breathing background using theme colors */
+  .bg-mesh {
+    background-color: var(--background);
+    background-image:
+      radial-gradient(at 0% 0%, oklch(from var(--primary) l c h / 15%) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, oklch(from var(--accent) l c h / 15%) 0px, transparent 50%),
+      radial-gradient(at 100% 100%, oklch(from var(--secondary) l c h / 15%) 0px, transparent 50%),
+      radial-gradient(at 0% 100%, oklch(from var(--muted) l c h / 15%) 0px, transparent 50%);
+  }
+
+  /* Darker mesh for dark mode if needed, but opacity handling above works for both usually. 
+     Let's enforce slightly lower opacity for dark mode context implicitly via the colors. */
+
+  /* Grid: Subtle technical grid */
+  .bg-grid {
+    background-size: 40px 40px;
+    background-image: linear-gradient(to right, oklch(from var(--border) l c h / 30%) 1px, transparent 1px),
+      linear-gradient(to bottom, oklch(from var(--border) l c h / 30%) 1px, transparent 1px);
+    mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
+  }
+
+  /* Dots: Modern dot matrix */
+  .bg-dots {
+    background-color: var(--background);
+    background-image: radial-gradient(oklch(from var(--foreground) l c h / 10%) 1px, transparent 1px);
+    background-size: 20px 20px;
+    mask-image: radial-gradient(ellipse at center, black 50%, transparent 90%);
   }
 }
 
@@ -291,51 +365,57 @@
    ============================================================================= */
 
 @layer utilities {
+
   /* Fade animations */
   .animate-fade-in {
     animation: fade-in 0.3s ease-out forwards;
   }
+
   .animate-fade-out {
     animation: fade-out 0.3s ease-out forwards;
   }
-  
+
   /* Slide animations */
   .animate-slide-up {
     animation: slide-up 0.4s ease-out forwards;
   }
+
   .animate-slide-down {
     animation: slide-down 0.4s ease-out forwards;
   }
+
   .animate-slide-left {
     animation: slide-left 0.4s ease-out forwards;
   }
+
   .animate-slide-right {
     animation: slide-right 0.4s ease-out forwards;
   }
-  
+
   /* Scale animations */
   .animate-scale-in {
     animation: scale-in 0.3s ease-out forwards;
   }
+
   .animate-scale-out {
     animation: scale-out 0.3s ease-out forwards;
   }
-  
+
   /* Bounce/Spring */
   .animate-bounce-in {
     animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
   }
-  
+
   /* Float (for decorative elements) */
   .animate-float {
     animation: float 3s ease-in-out infinite;
   }
-  
+
   /* Pulse glow (for CTAs) */
   .animate-pulse-glow {
     animation: pulse-glow 2s ease-in-out infinite;
   }
-  
+
   /* Shimmer (for loading states) */
   .animate-shimmer {
     background: linear-gradient(90deg, transparent, oklch(1 0 0 / 10%), transparent);
@@ -351,58 +431,159 @@
 
 /* Keyframes */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
+
 @keyframes fade-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
 }
+
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 @keyframes slide-down {
-  from { opacity: 0; transform: translateY(-20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
+
 @keyframes slide-left {
-  from { opacity: 0; transform: translateX(20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
+
 @keyframes slide-right {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
+
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.9); }
-  to { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
+
 @keyframes scale-out {
-  from { opacity: 1; transform: scale(1); }
-  to { opacity: 0; transform: scale(0.9); }
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.9);
+  }
 }
+
 @keyframes bounce-in {
-  0% { opacity: 0; transform: scale(0.3); }
-  50% { transform: scale(1.05); }
-  70% { transform: scale(0.9); }
-  100% { opacity: 1; transform: scale(1); }
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+
+  50% {
+    transform: scale(1.05);
+  }
+
+  70% {
+    transform: scale(0.9);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
+
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
+
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 var(--primary); }
-  50% { box-shadow: 0 0 20px 5px oklch(from var(--primary) l c h / 30%); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--primary);
+  }
+
+  50% {
+    box-shadow: 0 0 20px 5px oklch(from var(--primary) l c h / 30%);
+  }
 }
+
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
+
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* =============================================================================
@@ -413,6 +594,7 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
