@@ -87,7 +87,7 @@ export function PreviewPanel({
                         <div className="flex items-center gap-2 bg-zinc-900 border border-zinc-800 rounded-full px-3 py-1.5 text-xs text-zinc-400">
                             <div className={cn("h-2 w-2 rounded-full", previewUrl ? "bg-emerald-500" : "bg-orange-500/50")} />
                             <span className="flex-1 text-center font-mono truncate px-2">
-                                {previewUrl ? new URL(previewUrl).host : 'Connecting...'}
+                                {previewUrl ? (() => { try { return new URL(previewUrl).host } catch { return 'Loading...' } })() : 'Connecting...'}
                             </span>
                             <button
                                 onClick={onRefresh}
