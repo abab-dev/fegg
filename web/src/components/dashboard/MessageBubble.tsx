@@ -166,14 +166,7 @@ export function MessageBubble({ role, content, parts = [], steps = [] }: Message
                     if (part.type === 'text') {
                         return <TextContent key={i} content={part.content} />
                     }
-                    if (part.type === 'preview') {
-                        return (
-                            <div key={i} className="flex items-center gap-2 py-1.5 px-3 bg-emerald-900/20 rounded-lg border border-emerald-800/50 text-xs my-2">
-                                <Check className="h-3.5 w-3.5 text-emerald-500" />
-                                <span className="text-emerald-400 font-medium">Preview Ready</span>
-                            </div>
-                        )
-                    }
+                    // Preview badge removed - iframe speaks for itself
                     return null
                 })}
             </div>

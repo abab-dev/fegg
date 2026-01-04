@@ -24,6 +24,7 @@ export function Dashboard() {
     const [iframeKey, setIframeKey] = useState(0)
     const [isThinking, setIsThinking] = useState(false)
     const [sessionsOpen, setSessionsOpen] = useState(false)
+    const pendingPreviewUrlRef = useRef<string | null>(null)
 
     // Code editor state
     const [rightPanel, setRightPanel] = useState<'preview' | 'code'>('preview')
@@ -262,26 +263,13 @@ export function Dashboard() {
 
                                 case "preview_url":
                                 case "preview_ready":
-                                    chatStore.setPreviewUrl(data.url)
-                                    useChatStore.setState(state => {
-                                        const msgs = [...state.messages]
-                                        const lastMsg = msgs[msgs.length - 1]
-                                        if (lastMsg?.role === 'assistant') {
-                                            const parts = lastMsg.parts || []
-                                            const hasPreview = parts.some(p => p.type === 'preview')
-                                            if (!hasPreview) {
-                                                parts.push({
-                                                    type: 'preview',
-                                                    id: `preview-${Date.now()}`,
-                                                    title: 'Preview',
-                                                    url: data.url,
-                                                    status: 'done'
-                                                })
-                                                lastMsg.parts = parts
-                                            }
-                                        }
-                                        return { messages: msgs }
-                                    })
+                                    // Store URL but don't load iframe yet (wait until agent is done)
+                                    // If iframe already showing (subsequent message), update immediately
+                                    if (chatStore.currentPreviewUrl) {
+                                        chatStore.setPreviewUrl(data.url)
+                                    } else {
+                                        pendingPreviewUrlRef.current = data.url
+                                    }
                                     break
 
                                 case "user_message":
@@ -309,8 +297,12 @@ export function Dashboard() {
                                     setIsThinking(false)
                                     chatStore.setLoading(false)
                                     chatStore.setStreaming(false)
-                                    // Refresh preview to show final result
-                                    setIframeKey(prev => prev + 1)
+                                    // Now reveal the preview (first load) or refresh (subsequent)
+                                    if (pendingPreviewUrlRef.current) {
+                                        chatStore.setPreviewUrl(pendingPreviewUrlRef.current)
+                                        pendingPreviewUrlRef.current = null
+                                    }
+                                    setTimeout(() => setIframeKey(prev => prev + 1), 50)
                                     break
                             }
                         } catch (e) {
