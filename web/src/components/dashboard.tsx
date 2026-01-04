@@ -261,6 +261,9 @@ export function Dashboard() {
                                 case "preview_url":
                                     // Set preview URL immediately - this comes at the start
                                     chatStore.setPreviewUrl(data.url)
+                                    if (chatStore.currentSessionId) {
+                                        chatStore.updateSession(chatStore.currentSessionId, { preview_url: data.url })
+                                    }
                                     break
 
                                 case "token":
