@@ -63,11 +63,13 @@ class Logger:
 
 
 def create_tools(tools: FSTools, sandbox: UserSandbox):
+    """Create simplified tool set - no dev server tools since backend manages it."""
+    
     class ReadFileInput(BaseModel):
         path: str = Field(description="Path to file (relative to workspace)")
 
     def read_file(path: str) -> str:
-        """Read the contents of a file at the given path. Returns the file content as a string."""
+        """Read the contents of a file at the given path."""
         return tools.read_file(path)
 
     class WriteFileInput(BaseModel):
@@ -75,14 +77,14 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         content: str = Field(description="Content to write")
 
     def write_file(path: str, content: str) -> str:
-        """Write content to a file. Creates the file if it doesn't exist, overwrites if it does."""
+        """Write content to a file. Creates if doesn't exist, overwrites if it does."""
         return tools.write_file(path, content)
 
     class ListFilesInput(BaseModel):
         path: str = Field(default=".", description="Directory to list")
 
     def list_files(path: str = ".") -> str:
-        """List all files and directories in the given path. Returns a newline-separated list."""
+        """List all files and directories in the given path."""
         return tools.list_dir(path)
 
     class GrepInput(BaseModel):
@@ -97,15 +99,15 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         query: str = Field(description="Partial filename to search for")
 
     def fuzzy_find(query: str) -> str:
-        """Find files by partial name match. Returns a list of matching file paths with scores."""
+        """Find files by partial name match."""
         return tools.fuzzy_find(query)
 
     class RunCommandInput(BaseModel):
-        command: str = Field(description="Command to run (e.g., 'bun run build')")
+        command: str = Field(description="Command to run (e.g., 'bun run check')")
         timeout: int = Field(default=60, description="Max seconds to wait")
 
     def run_command(command: str, timeout: int = 60) -> str:
-        """Run a shell command that terminates. Use for: bun run build, bun install, etc. NOT for dev servers."""
+        """Run a shell command. Use for: bun run check, bun install, etc."""
         result = sandbox.sandbox.commands.run(
             f"cd {sandbox.workspace_path} && {command}", timeout=timeout
         )
@@ -114,89 +116,11 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
             output += f"\n[stderr]: {result.stderr}"
         return output
 
-    class StartDevServerInput(BaseModel):
-        command: str = Field(default="bun run dev", description="Dev server command")
-
-    def start_dev_server(command: str = "bun run dev") -> str:
-        """Start the development server in background. Returns the preview URL when ready."""
-        try:
-            sandbox.sandbox.commands.run(
-                "pkill -f 'vite' 2>/dev/null; exit 0", timeout=5
-            )
-        except:
-            pass
-        time.sleep(1)
-
-        try:
-            sandbox.sandbox.commands.run(
-                command, background=True, cwd=sandbox.workspace_path
-            )
-        except Exception as e:
-            pass
-
-        sandbox.dev_server_running = True
-
-        code = "000"
-        max_wait = 10
-        for i in range(max_wait):
-            time.sleep(1)
-            try:
-                result = sandbox.sandbox.commands.run(
-                    "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
-                    timeout=5,
-                )
-                code = result.stdout.strip()
-                if code == "200":
-                    break
-            except:
-                pass
-
-        try:
-            host = sandbox.sandbox.get_host(5173)
-            url = f"https://{host}"
-            sandbox.preview_url = url
-
-            if code == "200":
-                return f"✓ Dev server running.\nPreview URL: {url}"
-            else:
-                return f"Dev server starting...\nPreview URL: {url}"
-        except Exception as e:
-            return f"Dev server started but couldn't get URL: {e}"
-
-    def get_preview_url() -> str:
-        """Get the current preview URL for the running dev server."""
-        if sandbox.preview_url:
-            return sandbox.preview_url
-        try:
-            host = sandbox.sandbox.get_host(5173)
-            url = f"https://{host}"
-            sandbox.preview_url = url
-            return url
-        except:
-            return "No preview URL available. Start dev server first."
-
-    def check_dev_server() -> str:
-        """Check the status of the dev server. Returns health status and recent logs."""
-        result = sandbox.sandbox.commands.run(
-            "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
-            timeout=5,
-        )
-        http_code = result.stdout.strip()
-
-        logs = sandbox.sandbox.commands.run(
-            "tail -20 /tmp/dev-server.log 2>/dev/null || echo 'No logs'", timeout=5
-        )
-
-        status = "✓ Running" if http_code == "200" else f"⚠ HTTP {http_code}"
-        url = sandbox.preview_url or "Not available"
-
-        return f"Status: {status}\nPreview URL: {url}\n\nRecent logs:\n{logs.stdout}"
-
     class ShowUserMessageInput(BaseModel):
-        message: str = Field(description="Message to show to the user")
+        message: str = Field(description="Brief message to show to the user (1 sentence)")
 
     def show_user_message(message: str) -> str:
-        """Send a message to the user. This is the ONLY way to communicate with the user - use at the end of your work."""
+        """Send a message to the user. Use at the end of your work to confirm completion."""
         return message
 
     wrapped = [
@@ -206,12 +130,7 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         StructuredTool.from_function(grep_search, args_schema=GrepInput),
         StructuredTool.from_function(fuzzy_find, args_schema=FuzzyFindInput),
         StructuredTool.from_function(run_command, args_schema=RunCommandInput),
-        StructuredTool.from_function(start_dev_server, args_schema=StartDevServerInput),
-        StructuredTool.from_function(get_preview_url),
-        StructuredTool.from_function(check_dev_server),
-        StructuredTool.from_function(
-            show_user_message, args_schema=ShowUserMessageInput
-        ),
+        StructuredTool.from_function(show_user_message, args_schema=ShowUserMessageInput),
     ]
 
     return wrapped

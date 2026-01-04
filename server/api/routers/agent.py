@@ -13,12 +13,12 @@ from ..services.sandbox_manager import create_sandbox
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
 
-_pending_messages: dict[str, tuple[str, str]] = {}
+_pending_messages: dict[str, tuple[str, str, bool]] = {}
 
+# Tools shown in the UI activity feed
 VISIBLE_TOOLS = {
     "read_file", "write_file", "list_files",
-    "grep_search", "fuzzy_find",
-    "run_command", "start_dev_server", "check_dev_server", "get_preview_url",
+    "grep_search", "fuzzy_find", "run_command",
 }
 
 
@@ -64,6 +64,7 @@ async def send_message(
     
     return {"status": "processing", "stream_url": f"/sessions/{session_id}/sse"}
 
+
 @router.get("/{session_id}/sse")
 async def stream_events(
     session_id: str,
@@ -76,7 +77,8 @@ async def stream_events(
             Session.user_id == current_user["id"]
         )
     )
-    if not result.scalar_one_or_none():
+    session = result.scalar_one_or_none()
+    if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     
     pending = _pending_messages.get(session_id)
@@ -92,31 +94,38 @@ async def stream_events(
         step_counter = 0
 
         try:
+            # Step 1: Create sandbox if needed and get preview URL
             if needs_sandbox:
                 try:
                     sandbox_id, preview_url = await create_sandbox(session_id, user_id)
 
                     async with async_session() as db2:
                         result = await db2.execute(select(Session).where(Session.id == session_id))
-                        session = result.scalar_one_or_none()
-                        if session:
-                            session.sandbox_id = sandbox_id
-                            session.preview_url = preview_url
+                        sess = result.scalar_one_or_none()
+                        if sess:
+                            sess.sandbox_id = sandbox_id
+                            sess.preview_url = preview_url
                         await db2.commit()
-                    
-                    # Send preview URL immediately so frontend can show HMR preview
-                    if preview_url:
-                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url})}\n\n"
-                        preview_emitted = True
                     
                 except Exception as e:
                     yield f"data: {json.dumps({'type': 'error', 'message': f'Failed to create sandbox: {e}'})}\n\n"
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
+            else:
+                # Get existing preview URL from DB
+                async with async_session() as db2:
+                    result = await db2.execute(select(Session).where(Session.id == session_id))
+                    sess = result.scalar_one_or_none()
+                    if sess and sess.preview_url:
+                        preview_url = sess.preview_url
 
-            preview_emitted = preview_emitted if needs_sandbox else False
+            # Step 2: Send preview URL immediately so frontend shows it
+            if preview_url:
+                yield f"data: {json.dumps({'type': 'preview_url', 'url': preview_url})}\n\n"
+
             tool_step_map = {}
 
+            # Step 3: Stream agent events
             async for event in stream_agent_events(user_id, session_id, message):
                 if event["type"] == "token":
                     assistant_content += event.get("content", "")
@@ -152,12 +161,6 @@ async def stream_events(
                         elif tool_name == "run_command":
                             cmd = args.get("command", "")[:25]
                             title = f"Running {cmd}{'...' if len(args.get('command', '')) > 25 else ''}"
-                        elif tool_name == "start_dev_server":
-                            title = "Starting dev server"
-                        elif tool_name == "check_dev_server":
-                            title = "Checking server"
-                        elif tool_name == "get_preview_url":
-                            title = "Getting preview URL"
                         else:
                             title = tool_name.replace("_", " ").title()
                         
@@ -185,45 +188,14 @@ async def stream_events(
                         
                         yield f"data: {json.dumps({'type': 'tool_end', 'tool': tool_name, 'step_id': step_id})}\n\n"
 
-                elif event["type"] == "preview_ready":
-                    preview_url = event.get("url")
-                    preview_emitted = True
-
-                    step_counter += 1
-                    preview_step = {
-                        "id": f"step-{step_counter}",
-                        "type": "preview",
-                        "title": "Preview Ready",
-                        "url": preview_url,
-                        "status": "done"
-                    }
-                    collected_steps.append(preview_step)
-                    
-                    yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url, 'step': preview_step})}\n\n"
-                
                 elif event["type"] == "done":
-                    url = event.get("preview_url")
-                    if url:
-                        preview_url = url
-
-                    if not preview_emitted and preview_url:
-                        step_counter += 1
-                        preview_step = {
-                            "id": f"step-{step_counter}",
-                            "type": "preview",
-                            "title": "Preview Ready",
-                            "url": preview_url,
-                            "status": "done"
-                        }
-                        collected_steps.append(preview_step)
-                        yield f"data: {json.dumps({'type': 'preview_ready', 'url': preview_url, 'step': preview_step})}\n\n"
-                        preview_emitted = True
-
-                    yield f"data: {json.dumps(event)}\n\n"
+                    # Agent finished - send done event
+                    yield f"data: {json.dumps({'type': 'done', 'preview_url': preview_url})}\n\n"
 
                 elif event["type"] == "error":
                     yield f"data: {json.dumps(event)}\n\n"
 
+            # Save assistant message to DB
             async with async_session() as db2:
                 if assistant_content or collected_steps:
                     msg = Message(
@@ -235,12 +207,12 @@ async def stream_events(
                     db2.add(msg)
 
                 result = await db2.execute(select(Session).where(Session.id == session_id))
-                session = result.scalar_one_or_none()
-                if session:
-                    session.status = "ready"
-                    session.last_activity = datetime.utcnow()
+                sess = result.scalar_one_or_none()
+                if sess:
+                    sess.status = "ready"
+                    sess.last_activity = datetime.utcnow()
                     if preview_url:
-                        session.preview_url = preview_url
+                        sess.preview_url = preview_url
 
                 await db2.commit()
             
@@ -248,9 +220,9 @@ async def stream_events(
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
             async with async_session() as db2:
                 result = await db2.execute(select(Session).where(Session.id == session_id))
-                session = result.scalar_one_or_none()
-                if session:
-                    session.status = "ready"
+                sess = result.scalar_one_or_none()
+                if sess:
+                    sess.status = "ready"
                 await db2.commit()
         finally:
             _pending_messages.pop(session_id, None)

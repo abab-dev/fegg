@@ -24,7 +24,6 @@ export function Dashboard() {
     const [iframeKey, setIframeKey] = useState(0)
     const [isThinking, setIsThinking] = useState(false)
     const [sessionsOpen, setSessionsOpen] = useState(false)
-    const pendingPreviewUrlRef = useRef<string | null>(null)
 
     // Code editor state
     const [rightPanel, setRightPanel] = useState<'preview' | 'code'>('preview')
@@ -50,12 +49,23 @@ export function Dashboard() {
         fetchSessions()
     }, [])
 
-    // Auto-scroll on new messages
+    // Auto-scroll on new messages (debounced to prevent freeze during streaming)
     useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+        const scrollToBottom = () => {
+            if (scrollRef.current) {
+                requestAnimationFrame(() => {
+                    if (scrollRef.current) {
+                        scrollRef.current.scrollTop = scrollRef.current.scrollHeight
+                    }
+                })
+            }
         }
-    }, [chatStore.messages, isThinking])
+
+        // Scroll when streaming stops or thinking state changes
+        if (!chatStore.isStreaming) {
+            scrollToBottom()
+        }
+    }, [chatStore.isStreaming, chatStore.messages.length])
 
     // Auto-refresh preview when URL changes
     useEffect(() => {
@@ -189,12 +199,17 @@ export function Dashboard() {
                         try {
                             const data = JSON.parse(line.slice(6))
 
-                            if (!hasAssistantMessage && data.type !== 'done' && data.type !== 'error') {
+                            if (!hasAssistantMessage && data.type !== 'done' && data.type !== 'error' && data.type !== 'preview_url') {
                                 chatStore.addMessage({ role: "assistant", content: "", parts: [] })
                                 hasAssistantMessage = true
                             }
 
                             switch (data.type) {
+                                case "preview_url":
+                                    // Set preview URL immediately - this comes at the start
+                                    chatStore.setPreviewUrl(data.url)
+                                    break
+
                                 case "token":
                                     setIsThinking(false)
                                     useChatStore.setState(state => {
@@ -203,7 +218,6 @@ export function Dashboard() {
                                         if (lastMsg?.role === 'assistant') {
                                             const parts = lastMsg.parts || []
                                             const lastPart = parts[parts.length - 1] as any
-                                            // Append to existing text part (unless it's marked complete from user_message)
                                             if (lastPart?.type === 'text' && !lastPart.isComplete) {
                                                 lastPart.content += data.content
                                             } else {
@@ -231,7 +245,6 @@ export function Dashboard() {
                                                     status: 'running'
                                                 })
                                                 lastMsg.parts = parts
-                                                // Keep steps for compat
                                                 lastMsg.steps = [...(lastMsg.steps || []), data.step]
                                             }
                                             return { messages: msgs }
@@ -261,20 +274,8 @@ export function Dashboard() {
                                     }
                                     break
 
-                                case "preview_url":
-                                case "preview_ready":
-                                    // Store URL but don't load iframe yet (wait until agent is done)
-                                    // If iframe already showing (subsequent message), update immediately
-                                    if (chatStore.currentPreviewUrl) {
-                                        chatStore.setPreviewUrl(data.url)
-                                    } else {
-                                        pendingPreviewUrlRef.current = data.url
-                                    }
-                                    break
-
                                 case "user_message":
-                                    // user_message is a complete message from show_user_message tool
-                                    // Mark it complete so tokens don't append to it
+                                    // Final message from agent via show_user_message
                                     setIsThinking(false)
                                     useChatStore.setState(state => {
                                         const msgs = [...state.messages]
@@ -297,12 +298,8 @@ export function Dashboard() {
                                     setIsThinking(false)
                                     chatStore.setLoading(false)
                                     chatStore.setStreaming(false)
-                                    // Now reveal the preview (first load) or refresh (subsequent)
-                                    if (pendingPreviewUrlRef.current) {
-                                        chatStore.setPreviewUrl(pendingPreviewUrlRef.current)
-                                        pendingPreviewUrlRef.current = null
-                                    }
-                                    setTimeout(() => setIframeKey(prev => prev + 1), 50)
+                                    // Refresh iframe to show final result
+                                    setTimeout(() => setIframeKey(prev => prev + 1), 100)
                                     break
                             }
                         } catch (e) {

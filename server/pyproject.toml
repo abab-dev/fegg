@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.2.1",
     "python-jose>=3.5.0",
     "python-multipart>=0.0.21",
+    "rapidfuzz>=3.14.3",
     "sqlalchemy[asyncio]>=2.0.45",
     "uvicorn>=0.40.0",
 ]

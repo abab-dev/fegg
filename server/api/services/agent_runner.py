@@ -83,6 +83,7 @@ async def cleanup_all_sandboxes() -> int:
 async def stream_agent_events(
     user_id: str, session_id: str, message: str
 ) -> AsyncGenerator[Dict[str, Any], None]:
+    """Stream agent events to the frontend."""
     user_sandbox = await get_user_sandbox(user_id)
     config = {"recursion_limit": MAX_ITERATIONS}
 
@@ -110,8 +111,6 @@ async def stream_agent_events(
                 messages.append(AIMessage(content=msg.content))
 
     messages.append(HumanMessage(content=message))
-
-    preview_url = None
 
     async for event in graph.astream_events(
         {"messages": messages}, config=config, version="v2"
@@ -144,12 +143,4 @@ async def stream_agent_events(
             output = str(event.get("data", {}).get("output", ""))[:500]
             yield {"type": "tool_end", "tool": tool_name, "result": output}
 
-            if "Preview URL:" in output:
-                try:
-                    url = output.split("Preview URL:")[1].strip().split()[0]
-                    preview_url = url
-                    yield {"type": "preview_ready", "url": url}
-                except:
-                    pass
-
-    yield {"type": "done", "preview_url": preview_url}
+    yield {"type": "done"}
