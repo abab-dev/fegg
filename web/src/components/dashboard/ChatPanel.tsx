@@ -43,10 +43,10 @@ export function ChatPanel({
             <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-thin">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                        <div className="h-16 w-16 rounded-2xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6">
-                            <Rocket className="h-8 w-8 text-foreground" />
+                        <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mb-6 ring-1 ring-primary/20">
+                            <Rocket className="h-8 w-8 text-primary" />
                         </div>
-                        <h3 className="text-lg font-semibold text-foreground mb-2">What do you want to build?</h3>
+                        <h3 className="text-lg font-semibold mb-2 text-foreground">What do you want to build?</h3>
                         <p className="text-sm text-muted-foreground max-w-[280px]">
                             Describe your app and watch it come to life
                         </p>
@@ -67,9 +67,9 @@ export function ChatPanel({
                         {isThinking && (
                             <div className="flex items-center gap-1 py-3 px-1">
                                 <span className="flex gap-1">
-                                    <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                                 </span>
                             </div>
                         )}
@@ -79,8 +79,8 @@ export function ChatPanel({
 
             {/* Input */}
             <div className="p-4">
-                <div className="relative">
-                    <div className="absolute -inset-0.5 bg-gradient-to-r from-zinc-500/10 to-zinc-400/10 rounded-2xl blur opacity-20" />
+                <div className="relative group/input">
+                    <div className="absolute -inset-0.5 bg-primary/10 rounded-2xl blur opacity-0 group-focus-within/input:opacity-50 transition-opacity duration-300" />
                     <div className="relative bg-secondary/40 rounded-2xl border border-border overflow-hidden">
                         <Textarea
                             value={input}
@@ -109,7 +109,7 @@ export function ChatPanel({
                                     size="sm"
                                     className={cn(
                                         "h-8 w-8 rounded-lg transition-all",
-                                        input.trim() ? "bg-primary hover:bg-primary/90 text-primary-foreground" : "bg-secondary text-muted-foreground"
+                                        input.trim() ? "bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/25" : "bg-secondary text-muted-foreground"
                                     )}
                                     onClick={onSend}
                                     disabled={isLoading || !input.trim() || !hasSession}

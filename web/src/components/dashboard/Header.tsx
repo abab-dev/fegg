@@ -120,7 +120,7 @@ export function Header({
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="sm" className="h-8 gap-2 text-muted-foreground hover:text-foreground px-2">
-                            <div className="h-6 w-6 rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                            <div className="h-6 w-6 rounded-full bg-primary/20 ring-1 ring-primary/30" />
                             <ChevronDown className="h-3 w-3" />
                         </Button>
                     </DropdownMenuTrigger>

@@ -95,8 +95,8 @@ export function ProjectsSheet({
                             className={cn(
                                 "group relative w-full text-left px-3 py-2 rounded-lg text-sm transition-colors flex items-center justify-between cursor-pointer",
                                 session.id === currentSessionId
-                                    ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/50"
+                                    ? "bg-primary/10 text-sidebar-accent-foreground ring-1 ring-primary/20"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-primary/5"
                             )}
                         >
                             <div className="flex items-center gap-2 overflow-hidden flex-1">
