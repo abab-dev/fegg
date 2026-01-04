@@ -10,13 +10,29 @@ from .config import DATABASE_URL
 
 DB_PATH = Path(__file__).parent / "fegg.db"
 
-if "sqlite" in DATABASE_URL:
-    engine = create_async_engine(
-        f"sqlite+aiosqlite:///{DB_PATH}",
-        echo=False,
-    )
+# NOTE: We ensure the correct async drivers are used for each database type.
+# Defaults to local SQLite if DATABASE_URL is not set or indicates sqlite.
+
+url = DATABASE_URL
+if "sqlite" in url:
+    # Force absolute path for local development reliability
+    final_url = f"sqlite+aiosqlite:///{DB_PATH}"
+    engine = create_async_engine(final_url, echo=False)
+    
+elif url.startswith("postgres://") or url.startswith("postgresql://"):
+    # Supabase/Postgres requires asyncpg
+    final_url = url.replace("postgres://", "postgresql+asyncpg://")
+    final_url = final_url.replace("postgresql://", "postgresql+asyncpg://")
+    engine = create_async_engine(final_url, echo=False)
+    
+elif url.startswith("mysql://"):
+    # MySQL requires aiomysql
+    final_url = url.replace("mysql://", "mysql+aiomysql://")
+    engine = create_async_engine(final_url, echo=False)
+
 else:
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    # Fallback/Direct usage
+    engine = create_async_engine(url, echo=False)
 
 async_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
