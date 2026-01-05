@@ -1,4 +1,3 @@
-
 import asyncio
 import sys
 from pathlib import Path
@@ -23,7 +22,7 @@ async def test_blocking_command():
     print(f"  total_lines: {result.get('total_lines', 0)}")
     print(f"\nOutput (truncated to last few lines):")
     print("-" * 40)
-    print(result.get('output', 'No output'))
+    print(result.get("output", "No output"))
     print("-" * 40)
 
 
@@ -43,11 +42,11 @@ async def test_background_command():
     print(f"  url: {result.get('url', 'N/A')}")
     print(f"  lines_captured: {result.get('lines_captured', 0)}")
 
-    cmd_id = result.get('cmd_id')
+    cmd_id = result.get("cmd_id")
 
     print(f"\n3. Initial output (first {result.get('lines_captured', 0)} lines):")
     print("-" * 40)
-    print(result.get('initial_output', 'No output'))
+    print(result.get("initial_output", "No output"))
     print("-" * 40)
 
     print(f"\n4. Agent checks back later - reading only LAST 5 lines:")
@@ -62,12 +61,14 @@ async def test_background_command():
 
     print(f"\n6. Last 5 lines of output:")
     print("-" * 40)
-    print(log_result.get('lines', 'No output'))
+    print(log_result.get("lines", "No output"))
     print("-" * 40)
 
     print(f"\n7. Recent commands:")
     for cmd in executor.list_commands(limit=3):
-        print(f"  - {cmd['cmd_id']}: {cmd['command']} (exit_code={cmd.get('exit_code')}, running={cmd.get('is_running')})")
+        print(
+            f"  - {cmd['cmd_id']}: {cmd['command']} (exit_code={cmd.get('exit_code')}, running={cmd.get('is_running')})"
+        )
 
     print(f"\n8. Stopping dev server...")
     stop_result = await executor.terminate(cmd_id)
@@ -84,7 +85,7 @@ async def test_context_window_simulation():
 
     print("\n1. Starting dev server...")
     result = await executor.run_background("npm run dev", wait_for_output=2.0)
-    cmd_id = result.get('cmd_id')
+    cmd_id = result.get("cmd_id")
 
     print(f"\n2. Let server run for a moment...")
     await asyncio.sleep(2)
@@ -94,21 +95,20 @@ async def test_context_window_simulation():
 
     for i in range(3):
         log = executor.read_log(cmd_id, limit=3, from_end=True)
-        print(f"\n   Read #{i+1}: {log.get('showing', 'N/A')}")
-        for line in log.get('lines', '').strip().split('\n')[-3:]:
+        print(f"\n   Read #{i + 1}: {log.get('showing', 'N/A')}")
+        for line in log.get("lines", "").strip().split("\n")[-3:]:
             if line.strip():
                 print(f"     {line.strip()}")
         await asyncio.sleep(1)
 
     log = executor.read_log(cmd_id, limit=3, from_end=True)
-    total = log.get('total_lines', 0)
+    total = log.get("total_lines", 0)
     print(f"\n4. Summary:")
     print(f"   Total output lines generated: {total}")
     print(f"   Lines agent actually reads each time: 3")
     print(f"   Context saved: ~{total - 3} lines per read!")
     print(f"   Pagination remaining: {log.get('pagination_remaining', 0)}")
 
-    # Cleanup
     await executor.terminate(cmd_id)
     print(f"\n5. Server stopped.")
 
@@ -128,7 +128,7 @@ async def test_noisy_command_suppression():
     print(f"  total_lines: {result.get('total_lines', 0)}")
     print(f"\n3. Output:")
     print("-" * 40)
-    print(result.get('output', 'No output'))
+    print(result.get("output", "No output"))
     print("-" * 40)
 
 

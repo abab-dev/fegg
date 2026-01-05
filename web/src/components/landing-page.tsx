@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { motion } from "framer-motion"
-import { ArrowRight, Bot, Code, Zap } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 
 interface LandingPageProps {
     onLoginClick: () => void
@@ -40,7 +40,6 @@ function ScrambleText({ text }: { text: string }) {
 }
 
 export function LandingPage({ onLoginClick, onPromptSubmit }: LandingPageProps) {
-    // Unicorn Studio Initialization
     useEffect(() => {
         const script = document.createElement("script")
         script.src = "https://cdn.jsdelivr.net/gh/hiunicornstudio/unicornstudio.js@v1.4.29/dist/unicornStudio.umd.js"
@@ -70,22 +69,6 @@ export function LandingPage({ onLoginClick, onPromptSubmit }: LandingPageProps) 
 
     return (
         <div className="relative min-h-screen bg-black text-white selection:bg-white selection:text-black overflow-hidden font-sans flex flex-col">
-            {/* Global Backgrounds */}
-            <div className="fixed inset-0 -z-30 w-full h-full overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 bg-black"></div>
-                {/* Video background - subtle movement */}
-                <video autoPlay loop muted playsInline className="absolute inset-0 w-full h-full object-cover opacity-20 mix-blend-screen" style={{ filter: "hue-rotate(150deg) contrast(1.1) saturate(0.5)" }}>
-                    <source src="https://cdn.coverr.co/videos/coverr-digital-lines-moving-background-4770/1080p.mp4" type="video/mp4" />
-                </video>
-                {/* Gradient Overlay for professional 'Greyish' feel while keeping purple vibe */}
-                <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black"></div>
-            </div>
-
-            <div className="fixed inset-0 pointer-events-none z-0 technical-grid opacity-10"></div>
-
-            <div className="noise-overlay opacity-20"></div>
-
-            {/* Navigation */}
             <nav className="fixed z-50 top-6 left-0 right-0 flex w-full max-w-[1400px] mx-auto px-6 items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="w-4 h-4 bg-white flex items-center justify-center shadow-[0_0_15px_rgba(255,255,255,0.3)]"></div>
@@ -103,9 +86,7 @@ export function LandingPage({ onLoginClick, onPromptSubmit }: LandingPageProps) 
             </nav>
 
             <main className="z-10 relative flex-1 flex flex-col justify-center items-center min-h-screen pb-20">
-                {/* Hero */}
                 <section className="w-full max-w-[1400px] mx-auto px-6 relative flex flex-col items-center text-center">
-                    {/* Unicorn Studio Effect Container */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-[800px] mix-blend-screen pointer-events-none -z-10 opacity-60">
                         <div className="absolute w-full h-full left-0 top-0" data-us-project="ILgOO23w4wEyPQOKyLO4"></div>
                     </div>
@@ -147,9 +128,7 @@ export function LandingPage({ onLoginClick, onPromptSubmit }: LandingPageProps) 
                             transition={{ duration: 0.8, delay: 0.4 }}
                             className="w-full max-w-2xl mx-auto mt-6"
                         >
-                            {/* Big Input Box - High Visibility Mode */}
                             <form onSubmit={handleSubmit} className="relative group w-full">
-                                {/* Subtle Glow */}
                                 <div className="absolute -inset-1 bg-gradient-to-r from-white/10 to-zinc-500/10 rounded-2xl blur-xl opacity-0 group-hover:opacity-100 transition duration-700"></div>
 
                                 <div className="relative">
@@ -174,13 +153,6 @@ export function LandingPage({ onLoginClick, onPromptSubmit }: LandingPageProps) 
                                 </div>
                             </form>
 
-                            <div className="mt-12 flex items-center justify-center gap-8 text-zinc-600 text-[10px] font-mono uppercase tracking-widest">
-                                <span className="flex items-center gap-2 hover:text-zinc-400 transition-colors cursor-default"><Bot className="w-3 h-3" /> GPT-4o</span>
-                                <span className="w-px h-3 bg-zinc-800"></span>
-                                <span className="flex items-center gap-2 hover:text-zinc-400 transition-colors cursor-default"><Code className="w-3 h-3" /> React 19</span>
-                                <span className="w-px h-3 bg-zinc-800"></span>
-                                <span className="flex items-center gap-2 hover:text-zinc-400 transition-colors cursor-default"><Zap className="w-3 h-3" /> Instant</span>
-                            </div>
                         </motion.div>
                     </div>
                 </section>

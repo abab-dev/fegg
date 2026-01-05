@@ -16,7 +16,7 @@ interface CodeEditorProps {
     onContentChange: (path: string, content: string) => void
 }
 
-// Tree node structure
+
 interface TreeNode {
     name: string
     path: string
@@ -24,7 +24,7 @@ interface TreeNode {
     children: TreeNode[]
 }
 
-// Build nested tree from flat file paths
+
 function buildTree(paths: string[]): TreeNode[] {
     const root: TreeNode[] = []
 
@@ -52,7 +52,7 @@ function buildTree(paths: string[]): TreeNode[] {
         }
     }
 
-    // Sort: folders first, then alphabetically
+
     const sortNodes = (nodes: TreeNode[]): TreeNode[] => {
         return nodes
             .map(n => ({ ...n, children: sortNodes(n.children) }))
@@ -66,7 +66,7 @@ function buildTree(paths: string[]): TreeNode[] {
     return sortNodes(root)
 }
 
-// Get file icon color based on extension
+
 function getFileColor(name: string): string {
     const ext = name.split('.').pop()?.toLowerCase()
     const colors: Record<string, string> = {
@@ -91,7 +91,7 @@ function getLanguage(path: string): string {
     return map[ext || ''] || 'plaintext'
 }
 
-// Recursive tree node component
+
 function TreeNodeItem({
     node,
     depth,
@@ -168,7 +168,7 @@ export function CodeEditor({
     onFileClose,
     onContentChange,
 }: CodeEditorProps) {
-    // Extract all folder paths and expand them by default
+
     const allFolders = useMemo(() => {
         const folders = new Set<string>()
         for (const path of fileTree) {
@@ -200,7 +200,7 @@ export function CodeEditor({
 
     return (
         <div className="flex flex-1 overflow-hidden h-full">
-            {/* File Tree Sidebar */}
+
             <div className="w-56 border-r border-border bg-sidebar flex flex-col min-h-0">
                 <div className="p-2 text-[11px] font-medium text-muted-foreground uppercase tracking-wider border-b border-border flex-shrink-0">
                     Explorer
@@ -220,9 +220,9 @@ export function CodeEditor({
                 </div>
             </div>
 
-            {/* Editor Area */}
+
             <div className="flex-1 flex flex-col min-w-0">
-                {/* Open File Tabs */}
+
                 {openFiles.length > 0 && (
                     <div className="h-9 border-b border-border bg-sidebar flex-shrink-0 overflow-x-auto scrollbar-thin" style={{ scrollbarWidth: 'thin' }}>
                         <div className="flex items-center h-full min-w-max">
@@ -252,7 +252,7 @@ export function CodeEditor({
                     </div>
                 )}
 
-                {/* Monaco Editor */}
+
                 <div className="flex-1 min-h-0">
                     {isLoadingFile ? (
                         <div className="flex items-center justify-center h-full text-muted-foreground">

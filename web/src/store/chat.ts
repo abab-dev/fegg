@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-// A "part" is either text or a tool step, stored in order
+
 export type MessagePart =
     | { type: 'text'; content: string }
     | { type: 'tool'; id: string; title: string; status: 'running' | 'done' | 'error' }
@@ -9,10 +9,10 @@ export type MessagePart =
 export interface Message {
     id?: string;
     role: 'user' | 'assistant';
-    content: string;  // Keep for backwards compat / user messages
+    content: string;
     timestamp?: string;
-    parts?: MessagePart[];  // New: ordered list of text chunks and tool steps
-    steps?: Step[];  // Deprecated but keep for loading old messages
+    parts?: MessagePart[];
+    steps?: Step[];
 }
 
 export interface Step {
@@ -34,18 +34,18 @@ export interface Session {
 }
 
 interface ChatState {
-    // Session State
+
     sessions: Session[];
     currentSessionId: string | null;
     currentPreviewUrl: string | null;
 
-    // Message State
+
     messages: Message[];
     isLoading: boolean;
     isStreaming: boolean;
 
-    // Actions
-    // Actions
+
+
     setSessions: (sessions: Session[]) => void;
     setCurrentSession: (id: string | null) => void;
     setPreviewUrl: (url: string | null) => void;

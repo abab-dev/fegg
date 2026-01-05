@@ -189,7 +189,9 @@ class FileSystemTools:
             overwrite_info = ""
             if target_file.exists():
                 try:
-                    with open(target_file, "r", encoding="utf-8", errors="replace") as f:
+                    with open(
+                        target_file, "r", encoding="utf-8", errors="replace"
+                    ) as f:
                         old_lines = len(f.readlines())
                     overwrite_info = f" [OVERWRITTEN: was {old_lines} lines]"
                 except Exception:
@@ -200,12 +202,12 @@ class FileSystemTools:
             with open(target_file, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            new_lines = content.count('\n') + (1 if content and not content.endswith('\n') else 0)
+            new_lines = content.count("\n") + (
+                1 if content and not content.endswith("\n") else 0
+            )
             return f"Successfully wrote {len(content)} chars ({new_lines} lines) to {path}{overwrite_info}"
 
         except ValueError as e:
             return f"Error: {e}"
         except Exception as e:
             return f"Error writing file: {e}"
-
-

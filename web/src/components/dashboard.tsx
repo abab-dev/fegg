@@ -27,14 +27,14 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
     const abortControllerRef = useRef<AbortController | null>(null)
     const hasRunInitialPrompt = useRef(false)
 
-    // Handle initial prompt from landing page
+
     useEffect(() => {
         if (initialPrompt && !hasRunInitialPrompt.current) {
             hasRunInitialPrompt.current = true
-            // Create a new session for the prompt
+
             createSession().then((id) => {
                 if (id) {
-                    // Slight delay to ensure state updates
+
                     setTimeout(() => sendMessage(initialPrompt), 100)
                 }
             })
@@ -55,7 +55,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
         toast.info("Generation stopped")
     }
 
-    // Code editor state
+
     const [rightPanel, setRightPanel] = useState<'preview' | 'code'>('preview')
     const [fileTree, setFileTree] = useState<string[]>([])
     const [openFiles, setOpenFiles] = useState<string[]>([])
@@ -63,7 +63,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
     const [fileContents, setFileContents] = useState<Record<string, string>>({})
     const [isLoadingFile, setIsLoadingFile] = useState(false)
 
-    // Load sessions on mount
+
     useEffect(() => {
         async function fetchSessions() {
             try {
@@ -79,7 +79,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
         fetchSessions()
     }, [])
 
-    // Auto-scroll on new messages (debounced to prevent freeze during streaming)
+
     useEffect(() => {
         const scrollToBottom = () => {
             if (scrollRef.current) {
@@ -91,20 +91,20 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
             }
         }
 
-        // Scroll when streaming stops or thinking state changes
+
         if (!chatStore.isStreaming) {
             scrollToBottom()
         }
     }, [chatStore.isStreaming, chatStore.messages.length])
 
-    // Auto-refresh preview when URL changes
+
     useEffect(() => {
         if (chatStore.currentPreviewUrl) {
             setIframeKey(prev => prev + 1)
         }
     }, [chatStore.currentPreviewUrl])
 
-    // File operations
+
     async function loadFileTree() {
         if (!chatStore.currentSessionId) return
         setIsLoadingFile(true)
@@ -156,15 +156,15 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
     function updateFileContent(path: string, content: string) {
-        // 1. Update local state immediately for UI response
+
         setFileContents(prev => ({ ...prev, [path]: content }))
 
-        // 2. Clear pending save
+
         if (saveTimeoutRef.current) {
             clearTimeout(saveTimeoutRef.current)
         }
 
-        // 3. Debounce save to backend
+
         saveTimeoutRef.current = setTimeout(async () => {
             if (!chatStore.currentSessionId) return
 
@@ -172,14 +172,14 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
                 await api.put(`sessions/${chatStore.currentSessionId}/files/${encodeURIComponent(path)}`, {
                     json: { content }
                 })
-                // HMR in the sandbox should pick this up automatically!
+
             } catch (error) {
                 toast.error("Failed to save changes")
             }
-        }, 1000) // 1 second debounce
+        }, 1000)
     }
 
-    // Session operations
+
     async function createSession() {
         try {
             const session = await api.post("sessions").json<any>()
@@ -226,13 +226,13 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
             await api.delete(`sessions/${id}`)
             chatStore.deleteSession(id)
 
-            // Select another session if current was deleted
+
             if (chatStore.currentSessionId === id || chatStore.sessions.length <= 1) {
                 const remaining = chatStore.sessions.filter(s => s.id !== id)
                 if (remaining.length > 0) {
                     selectSession(remaining[0].id)
                 } else {
-                    // Create new if none left
+
                     createSession()
                 }
             }
@@ -241,7 +241,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
         }
     }
 
-    // Send message with SSE streaming
+
     async function sendMessage(contentOverride?: string) {
         const content = contentOverride || input
         if (!content.trim() || !chatStore.currentSessionId || chatStore.isLoading) return
@@ -298,7 +298,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
 
                             switch (data.type) {
                                 case "preview_url":
-                                    // Set preview URL immediately - this comes at the start
+
                                     chatStore.setPreviewUrl(data.url)
                                     if (chatStore.currentSessionId) {
                                         chatStore.updateSession(chatStore.currentSessionId, { preview_url: data.url })
@@ -370,7 +370,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
                                     break
 
                                 case "user_message":
-                                    // Final message from agent via show_user_message
+
                                     setIsThinking(false)
                                     useChatStore.setState(state => {
                                         const msgs = [...state.messages]
@@ -393,12 +393,12 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
                                     setIsThinking(false)
                                     chatStore.setLoading(false)
                                     chatStore.setStreaming(false)
-                                    // Refresh iframe to show final result
+
                                     setTimeout(() => setIframeKey(prev => prev + 1), 100)
                                     break
                             }
                         } catch (e) {
-                            // Ignore parse errors
+
                         }
                     }
                 }
@@ -466,7 +466,7 @@ export function Dashboard({ initialPrompt }: { initialPrompt?: string }) {
                 onDeleteSession={deleteSession}
             />
 
-            {/* Main Content */}
+
             <main className="flex flex-1 pt-12 overflow-hidden h-full">
                 <ResizablePanelGroup direction="horizontal" className="h-full w-full">
                     <ResizablePanel defaultSize={35} minSize={20}>

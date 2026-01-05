@@ -1,4 +1,3 @@
-
 import asyncio
 from pathlib import Path
 from bashtools import AsyncProcessExecutor
@@ -7,18 +6,17 @@ WORKSPACE = Path("/home/ab/fegg/frontend_agent/workspace")
 
 
 class MockFrontendAgent:
-
     def __init__(self, workspace: Path):
         self.executor = AsyncProcessExecutor(str(workspace), timeout=60)
         self.dev_server_cmd_id = None
 
     async def start_dev_server(self, command: str = "npm run dev") -> dict:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[TOOL CALL] start_dev_server(command='{command}')")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         result = await self.executor.run_background(command, wait_for_output=3.0)
-        self.dev_server_cmd_id = result.get('cmd_id')
+        self.dev_server_cmd_id = result.get("cmd_id")
 
         print(f"\n[TOOL RESULT]")
         print(f"  cmd_id: {self.dev_server_cmd_id}")
@@ -29,14 +27,18 @@ class MockFrontendAgent:
         return result
 
     async def check_dev_server(self, last_lines: int = 10) -> dict:
-        print(f"\n{'='*60}")
-        print(f"[TOOL CALL] read_output(cmd_id='{self.dev_server_cmd_id}', last_lines={last_lines})")
-        print(f"{'='*60}")
+        print(f"\n{'=' * 60}")
+        print(
+            f"[TOOL CALL] read_output(cmd_id='{self.dev_server_cmd_id}', last_lines={last_lines})"
+        )
+        print(f"{'=' * 60}")
 
         if not self.dev_server_cmd_id:
             return {"error": "No dev server started"}
 
-        result = self.executor.read_log(self.dev_server_cmd_id, limit=last_lines, from_end=True)
+        result = self.executor.read_log(
+            self.dev_server_cmd_id, limit=last_lines, from_end=True
+        )
 
         print(f"\n[TOOL RESULT]")
         print(f"  showing: {result.get('showing', 'N/A')}")
@@ -45,16 +47,16 @@ class MockFrontendAgent:
         print(f"  pagination_remaining: {result.get('pagination_remaining', 0)}")
         print(f"\n  Output (last {last_lines} lines):")
         print("  " + "-" * 56)
-        for line in result.get('lines', '').strip().split('\n'):
+        for line in result.get("lines", "").strip().split("\n"):
             print(f"  {line}")
         print("  " + "-" * 56)
 
         return result
 
     async def run_build(self, command: str = "npm run build") -> dict:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[TOOL CALL] run_command(command='{command}')")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         result = await self.executor.run_command(command, timeout=60)
 
@@ -65,16 +67,16 @@ class MockFrontendAgent:
         print(f"  total_lines: {result.get('total_lines', 0)}")
         print(f"\n  Output (truncated to last few lines):")
         print("  " + "-" * 56)
-        for line in result.get('output', '').strip().split('\n')[-5:]:
+        for line in result.get("output", "").strip().split("\n")[-5:]:
             print(f"  {line}")
         print("  " + "-" * 56)
 
         return result
 
     async def stop_dev_server(self) -> dict:
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"[TOOL CALL] stop_command(cmd_id='{self.dev_server_cmd_id}')")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         if not self.dev_server_cmd_id:
             return {"error": "No dev server started"}
@@ -122,7 +124,7 @@ async def scenario_2_context_saving():
     await asyncio.sleep(3)
 
     log = agent.executor.read_log(agent.dev_server_cmd_id, limit=10, from_end=True)
-    total_lines = log.get('total_lines', 0)
+    total_lines = log.get("total_lines", 0)
 
     print("\n" + "=" * 60)
     print("CONTEXT SAVINGS ANALYSIS")
@@ -167,14 +169,12 @@ async def scenario_4_build_then_dev():
     print("\n[AGENT] Attempting to build...")
     build_result = await agent.run_build()
 
-    if build_result.get('exit_code', 0) != 0:
+    if build_result.get("exit_code", 0) != 0:
         print("\n[AGENT] Build failed, but dev server should still work!")
         print("[AGENT] Vite dev mode ignores TypeScript errors")
 
-    # Start dev server anyway
     await agent.start_dev_server()
 
-    # Check it's working
     await asyncio.sleep(2)
     await agent.check_dev_server(last_lines=5)
 

@@ -41,7 +41,7 @@ export function Header({
 }: HeaderProps) {
     return (
         <div className="absolute top-0 left-0 right-0 h-12 bg-background/80 backdrop-blur-md border-b border-border/50 z-50 flex items-center justify-between px-4">
-            {/* Left: Logo + Project */}
+
             <div className="flex items-center gap-3">
                 <button
                     onClick={onMenuClick}
@@ -88,7 +88,7 @@ export function Header({
                 )}
             </div>
 
-            {/* Right: Actions & User */}
+
             <div className="flex items-center gap-2">
                 {currentSession && onDownload && (
                     <Button
@@ -97,7 +97,7 @@ export function Header({
                         onClick={onDownload}
                         className="h-8 gap-2 text-muted-foreground hover:text-foreground px-2 hidden sm:flex"
                     >
-                        {/* We need to import Download icon */}
+
                         <svg
                             xmlns="http://www.w3.org/2000/svg"
                             width="16"

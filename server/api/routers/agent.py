@@ -19,7 +19,7 @@ router = APIRouter(prefix="/sessions", tags=["agent"])
 
 _pending_messages: dict[str, tuple[str, str, bool]] = {}
 
-# Tools shown in the UI activity feed
+
 VISIBLE_TOOLS = {
     "read_file",
     "write_file",
@@ -96,7 +96,6 @@ async def stream_events(
         step_counter = 0
 
         try:
-            # Step 1: Create sandbox if needed and get preview URL
             if needs_sandbox:
                 try:
                     sandbox_id, preview_url = await create_sandbox(session_id, user_id)
@@ -116,7 +115,6 @@ async def stream_events(
                     yield f"data: {json.dumps({'type': 'done'})}\n\n"
                     return
             else:
-                # Get existing preview URL from DB
                 async with async_session() as db2:
                     result = await db2.execute(
                         select(Session).where(Session.id == session_id)
@@ -125,13 +123,11 @@ async def stream_events(
                     if sess and sess.preview_url:
                         preview_url = sess.preview_url
 
-            # Step 2: Send preview URL immediately so frontend shows it
             if preview_url:
                 yield f"data: {json.dumps({'type': 'preview_url', 'url': preview_url})}\n\n"
 
             tool_step_map = {}
 
-            # Step 3: Stream agent events
             async for event in stream_agent_events(user_id, session_id, message):
                 if event["type"] == "token":
                     assistant_content += event.get("content", "")
@@ -195,13 +191,11 @@ async def stream_events(
                         yield f"data: {json.dumps({'type': 'tool_end', 'tool': tool_name, 'step_id': step_id})}\n\n"
 
                 elif event["type"] == "done":
-                    # Agent finished - send done event
                     yield f"data: {json.dumps({'type': 'done', 'preview_url': preview_url})}\n\n"
 
                 elif event["type"] == "error":
                     yield f"data: {json.dumps(event)}\n\n"
 
-            # Save assistant message to DB
             async with async_session() as db2:
                 if assistant_content or collected_steps:
                     msg = Message(
@@ -346,19 +340,15 @@ async def download_session_code(
         try:
             user_sandbox = await get_user_sandbox(current_user["id"])
         except Exception:
-            # Sandbox likely died or doesn't exist
             raise HTTPException(
                 status_code=410,
                 detail="Project session expired. Sandbox is no longer active.",
             )
 
-        # Ensure workspace directory exists
         user_sandbox.sandbox.commands.run("mkdir -p /home/user/workspace")
 
-        # Force remove any existing tar
         user_sandbox.sandbox.commands.run("rm -f /tmp/project.tar.gz")
 
-        # Create tarball
         exec_result = user_sandbox.sandbox.commands.run(
             "tar -czf /tmp/project.tar.gz --exclude node_modules --exclude dist --exclude *e2b.Dockerfile --exclude *e2b.toml --exclude .git .",
             cwd="/home/user/workspace",
@@ -371,7 +361,6 @@ async def download_session_code(
             )
 
         try:
-            # Read as bytes
             file_data = user_sandbox.sandbox.files.read(
                 "/tmp/project.tar.gz", format="bytes"
             )
@@ -400,6 +389,4 @@ async def download_session_code(
 async def stop_generation(
     session_id: str, current_user: dict = Depends(get_current_user)
 ):
-    # In MVP, client closing connection handles the stop.
-    # We just expose this endpoint if we need explicit state reset in DB if busy.
     return {"status": "ok"}

@@ -1,4 +1,3 @@
-
 import os
 import shutil
 import json
@@ -83,7 +82,6 @@ def init_workspace(force: bool = False) -> Path:
 
 
 def create_tools(workspace: Path):
-
     rm = RepoMind(str(workspace))
 
     bash = AsyncProcessExecutor(str(workspace), timeout=120)
@@ -195,7 +193,6 @@ def get_llm():
 
 
 def create_agent_node(system_prompt: str, tools: list):
-
     llm = get_llm()
     llm_bound = llm.bind_tools(tools)
     tool_map = {t.name: t for t in tools}
@@ -252,7 +249,6 @@ def create_agent_node(system_prompt: str, tools: list):
 
 
 def build_graph(workspace: Path):
-
     workspace_root = str(workspace.resolve())
 
     system_prompt = get_frontend_agent_prompt(workspace_root)
@@ -273,7 +269,6 @@ def build_graph(workspace: Path):
 
 
 def run_agent(query: str, reset_workspace: bool = False):
-
     workspace = init_workspace(force=reset_workspace)
 
     graph, bash_executor, event_loop = build_graph(workspace)
@@ -335,14 +330,12 @@ if __name__ == "__main__":
     print(f"Model: {ZAI_MODEL_NAME}")
 
     if args.interactive:
-        # Interactive mode (original behavior)
         reset = input("Reset workspace? (y/N): ").lower() == "y"
         default_query = "Create a beautiful landing page for a SaaS product called 'TaskFlow' - a project management tool."
         query = (
             input(f"\nQuery (default: '{default_query[:50]}...'): ") or default_query
         )
     else:
-        # Non-interactive mode
         reset = args.reset
         query = (
             args.query

@@ -39,7 +39,7 @@ export function ChatPanel({
 }: ChatPanelProps) {
     return (
         <div className="h-full w-full flex flex-col bg-background border-r border-border/50">
-            {/* Messages */}
+
             <div ref={scrollRef} className="flex-1 overflow-auto scrollbar-thin">
                 {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center p-8">
@@ -63,7 +63,7 @@ export function ChatPanel({
                             />
                         ))}
 
-                        {/* Thinking indicator */}
+
                         {isThinking && (
                             <div className="flex items-center gap-1 py-3 px-1">
                                 <span className="flex gap-1">
@@ -77,7 +77,7 @@ export function ChatPanel({
                 )}
             </div>
 
-            {/* Input */}
+
             <div className="p-4">
                 <div className="relative group/input">
                     <div className="absolute -inset-0.5 bg-primary/10 rounded-2xl blur opacity-0 group-focus-within/input:opacity-50 transition-opacity duration-300" />

@@ -64,7 +64,7 @@ class Logger:
 
 def create_tools(tools: FSTools, sandbox: UserSandbox):
     """Create simplified tool set - no dev server tools since backend manages it."""
-    
+
     class ReadFileInput(BaseModel):
         path: str = Field(description="Path to file (relative to workspace)")
 
@@ -117,20 +117,38 @@ def create_tools(tools: FSTools, sandbox: UserSandbox):
         return output
 
     class ShowUserMessageInput(BaseModel):
-        message: str = Field(description="Brief message to show to the user (1 sentence)")
+        message: str = Field(
+            description="Brief message to show to the user (1 sentence)"
+        )
 
     def show_user_message(message: str) -> str:
         """Send a message to the user. Use at the end of your work to confirm completion."""
         return message
 
     wrapped = [
-        StructuredTool.from_function(read_file, name="read_file", args_schema=ReadFileInput),
-        StructuredTool.from_function(write_file, name="write_file", args_schema=WriteFileInput),
-        StructuredTool.from_function(list_files, name="list_files", args_schema=ListFilesInput),
-        StructuredTool.from_function(grep_search, name="grep_search", args_schema=GrepInput),
-        StructuredTool.from_function(fuzzy_find, name="fuzzy_find", args_schema=FuzzyFindInput),
-        StructuredTool.from_function(run_command, name="run_command", args_schema=RunCommandInput),
-        StructuredTool.from_function(show_user_message, name="show_user_message", args_schema=ShowUserMessageInput),
+        StructuredTool.from_function(
+            read_file, name="read_file", args_schema=ReadFileInput
+        ),
+        StructuredTool.from_function(
+            write_file, name="write_file", args_schema=WriteFileInput
+        ),
+        StructuredTool.from_function(
+            list_files, name="list_files", args_schema=ListFilesInput
+        ),
+        StructuredTool.from_function(
+            grep_search, name="grep_search", args_schema=GrepInput
+        ),
+        StructuredTool.from_function(
+            fuzzy_find, name="fuzzy_find", args_schema=FuzzyFindInput
+        ),
+        StructuredTool.from_function(
+            run_command, name="run_command", args_schema=RunCommandInput
+        ),
+        StructuredTool.from_function(
+            show_user_message,
+            name="show_user_message",
+            args_schema=ShowUserMessageInput,
+        ),
     ]
 
     return wrapped
@@ -205,7 +223,6 @@ def build_graph(user_sandbox: UserSandbox, file_cache=None):
 
     backend = E2BBackend(user_sandbox.sandbox, user_sandbox.workspace_path)
 
-    # Use provided cache or create new one
     cache = file_cache or FileCache(max_entries=50)
     fs_tools = FSTools(backend, cache=cache)
 
@@ -284,14 +301,12 @@ if __name__ == "__main__":
 
     result, sandbox = run_agent(args.user, query)
 
-    # Keep sandbox alive for inspection
     if sandbox and sandbox.preview_url:
         print(
             f"\n{Logger.CYAN}Sandbox still running. Preview: {sandbox.preview_url}{Logger.ENDC}"
         )
         input("Press Enter to destroy sandbox...")
 
-    # Cleanup
     if sandbox:
         SandboxManager().destroy(args.user)
         Logger.log_system("Sandbox destroyed.")

@@ -9,6 +9,7 @@ from ..auth import hash_password, verify_password, create_token, get_current_use
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 @router.post("/register", response_model=TokenResponse)
 async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
@@ -18,29 +19,31 @@ async def register(body: UserCreate, db: AsyncSession = Depends(get_db)):
     user = User(
         id=str(uuid.uuid4()),
         email=body.email,
-        password_hash=hash_password(body.password)
+        password_hash=hash_password(body.password),
     )
     db.add(user)
     await db.commit()
     await db.refresh(user)
-    
+
     return TokenResponse(
         access_token=create_token(user.id),
-        user=UserResponse(id=user.id, email=user.email, created_at=user.created_at)
+        user=UserResponse(id=user.id, email=user.email, created_at=user.created_at),
     )
+
 
 @router.post("/login", response_model=TokenResponse)
 async def login(body: UserLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(User).where(User.email == body.email))
     user = result.scalar_one_or_none()
-    
+
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
+
     return TokenResponse(
         access_token=create_token(user.id),
-        user=UserResponse(id=user.id, email=user.email, created_at=user.created_at)
+        user=UserResponse(id=user.id, email=user.email, created_at=user.created_at),
     )
+
 
 @router.get("/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):

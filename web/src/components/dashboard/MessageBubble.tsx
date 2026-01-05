@@ -12,7 +12,7 @@ interface MessageBubbleProps {
     role: 'user' | 'assistant'
     content: string
     parts?: MessagePart[]
-    steps?: any[]  // Legacy support
+    steps?: any[]
 }
 
 function ToolStep({ part }: { part: MessagePart & { type: 'tool' } }) {
@@ -118,7 +118,7 @@ export function MessageBubble({ role, content, parts = [], steps = [] }: Message
         )
     }
 
-    // Group consecutive tool parts together
+
     const groupedParts: (MessagePart | { type: 'tool-group'; tools: (MessagePart & { type: 'tool' })[] })[] = []
     let currentToolGroup: (MessagePart & { type: 'tool' })[] = []
 
@@ -137,7 +137,7 @@ export function MessageBubble({ role, content, parts = [], steps = [] }: Message
         groupedParts.push({ type: 'tool-group', tools: currentToolGroup })
     }
 
-    // Fallback: if no parts, render legacy content
+
     if (parts.length === 0 && (content || steps.length > 0)) {
         return (
             <div className="flex gap-3 max-w-[90%]">
@@ -166,7 +166,7 @@ export function MessageBubble({ role, content, parts = [], steps = [] }: Message
                     if (part.type === 'text') {
                         return <TextContent key={i} content={part.content} />
                     }
-                    // Preview badge removed - iframe speaks for itself
+
                     return null
                 })}
             </div>

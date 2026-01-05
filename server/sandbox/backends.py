@@ -1,41 +1,24 @@
-
 from typing import Protocol, Optional
 from dataclasses import dataclass
 
 
 class FileBackend(Protocol):
-
     @property
-    def root(self) -> str:
-        ...
+    def root(self) -> str: ...
 
-    def read_file(self, path: str) -> str:
-        ...
+    def read_file(self, path: str) -> str: ...
 
-    def write_file(self, path: str, content: str) -> None:
-        ...
+    def write_file(self, path: str, content: str) -> None: ...
 
-    def file_exists(self, path: str) -> bool:
-        ...
+    def file_exists(self, path: str) -> bool: ...
 
-    def list_dir(self, path: str = ".") -> list[str]:
-        ...
+    def list_dir(self, path: str = ".") -> list[str]: ...
 
     def run_command(
-        self,
-        command: str,
-        timeout: int = 30,
-        cwd: Optional[str] = None
-    ) -> "CommandResult":
-        ...
+        self, command: str, timeout: int = 30, cwd: Optional[str] = None
+    ) -> "CommandResult": ...
 
-    def grep(
-        self,
-        pattern: str,
-        path: str = ".",
-        context_lines: int = 2
-    ) -> str:
-        ...
+    def grep(self, pattern: str, path: str = ".", context_lines: int = 2) -> str: ...
 
 
 @dataclass
@@ -54,19 +37,20 @@ class CommandResult:
 
 
 class LocalBackend:
-
     def __init__(self, root_path: str):
         from pathlib import Path
+
         self._root = Path(root_path).resolve()
         if not self._root.exists():
             self._root.mkdir(parents=True)
-    
+
     @property
     def root(self) -> str:
         return str(self._root)
-    
+
     def _resolve(self, path: str) -> "Path":
         from pathlib import Path
+
         if path.startswith("/"):
             full = Path(path)
         else:
@@ -78,34 +62,31 @@ class LocalBackend:
             raise ValueError(f"Path outside workspace: {path}")
 
         return full.resolve()
-    
+
     def read_file(self, path: str) -> str:
         return self._resolve(path).read_text(encoding="utf-8")
-    
+
     def write_file(self, path: str, content: str) -> None:
         full = self._resolve(path)
         full.parent.mkdir(parents=True, exist_ok=True)
         full.write_text(content, encoding="utf-8")
-    
+
     def file_exists(self, path: str) -> bool:
         return self._resolve(path).exists()
-    
+
     def list_dir(self, path: str = ".") -> list[str]:
         target = self._resolve(path)
         if not target.is_dir():
             return []
         return [p.name for p in target.iterdir()]
-    
+
     def run_command(
-        self, 
-        command: str, 
-        timeout: int = 30,
-        cwd: Optional[str] = None
+        self, command: str, timeout: int = 30, cwd: Optional[str] = None
     ) -> CommandResult:
         import subprocess
-        
+
         work_dir = self._resolve(cwd) if cwd else self._root
-        
+
         try:
             result = subprocess.run(
                 command,
@@ -113,26 +94,17 @@ class LocalBackend:
                 cwd=str(work_dir),
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
             return CommandResult(
-                stdout=result.stdout,
-                stderr=result.stderr,
-                exit_code=result.returncode
+                stdout=result.stdout, stderr=result.stderr, exit_code=result.returncode
             )
         except subprocess.TimeoutExpired:
             return CommandResult(
-                stdout="",
-                stderr=f"Command timed out after {timeout}s",
-                exit_code=-1
+                stdout="", stderr=f"Command timed out after {timeout}s", exit_code=-1
             )
-    
-    def grep(
-        self,
-        pattern: str,
-        path: str = ".",
-        context_lines: int = 2
-    ) -> str:
+
+    def grep(self, pattern: str, path: str = ".", context_lines: int = 2) -> str:
         target = self._resolve(path)
 
         cmd = f'rg --color=never -n -C {context_lines} "{pattern}" "{target}" 2>/dev/null || grep -rn -C {context_lines} "{pattern}" "{target}"'
@@ -145,75 +117,65 @@ class LocalBackend:
 
 
 class E2BBackend:
-
     def __init__(self, sandbox, root_path: str = "/home/user/workspace"):
         self._sandbox = sandbox
         self._root = root_path
-    
+
     @property
     def root(self) -> str:
         return self._root
-    
+
     def _resolve(self, path: str) -> str:
         if path.startswith("/"):
             return path
         return f"{self._root}/{path}".replace("//", "/")
-    
+
     def read_file(self, path: str) -> str:
         full_path = self._resolve(path)
         return self._sandbox.files.read(full_path)
-    
+
     def write_file(self, path: str, content: str) -> None:
         full_path = self._resolve(path)
         self._sandbox.files.write(full_path, content)
-    
+
     def file_exists(self, path: str) -> bool:
         full_path = self._resolve(path)
-        result = self._sandbox.commands.run(f'test -e "{full_path}" && echo "yes" || echo "no"')
+        result = self._sandbox.commands.run(
+            f'test -e "{full_path}" && echo "yes" || echo "no"'
+        )
         return result.stdout.strip() == "yes"
-    
+
     def list_dir(self, path: str = ".") -> list[str]:
         full_path = self._resolve(path)
-        result = self._sandbox.commands.run(f'ls -1 "{full_path}" 2>/dev/null || echo ""')
+        result = self._sandbox.commands.run(
+            f'ls -1 "{full_path}" 2>/dev/null || echo ""'
+        )
         if not result.stdout.strip():
             return []
         return result.stdout.strip().split("\n")
-    
+
     def run_command(
-        self, 
-        command: str, 
-        timeout: int = 30,
-        cwd: Optional[str] = None
+        self, command: str, timeout: int = 30, cwd: Optional[str] = None
     ) -> CommandResult:
         work_dir = self._resolve(cwd) if cwd else self._root
 
         full_cmd = f'cd "{work_dir}" && {command}'
-        
+
         try:
             result = self._sandbox.commands.run(full_cmd, timeout=timeout)
             return CommandResult(
                 stdout=result.stdout or "",
                 stderr=result.stderr or "",
-                exit_code=result.exit_code if hasattr(result, 'exit_code') else 0
+                exit_code=result.exit_code if hasattr(result, "exit_code") else 0,
             )
         except Exception as e:
-            return CommandResult(
-                stdout="",
-                stderr=str(e),
-                exit_code=-1
-            )
-    
-    def grep(
-        self,
-        pattern: str,
-        path: str = ".",
-        context_lines: int = 2
-    ) -> str:
+            return CommandResult(stdout="", stderr=str(e), exit_code=-1)
+
+    def grep(self, pattern: str, path: str = ".", context_lines: int = 2) -> str:
         full_path = self._resolve(path)
 
-        # Exclude common heavy directories
         excludes = "--exclude-dir={node_modules,.git,dist,build,.next,.cache}"
-        
+
         cmd = f'grep -rn {excludes} -C {context_lines} "{pattern}" "{full_path}" 2>/dev/null || echo "No matches found"'
         result = self.run_command(cmd, timeout=15, cwd="/")
 

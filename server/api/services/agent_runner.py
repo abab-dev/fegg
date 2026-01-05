@@ -1,4 +1,3 @@
-
 from typing import AsyncGenerator, Dict, Any, Optional
 from langchain_core.messages import HumanMessage, AIMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,30 +32,27 @@ def clear_session_cache(session_id: str) -> None:
 
 async def create_sandbox_for_session(session_id: str, user_id: str) -> tuple[str, str]:
     import time
-    
+
     user_sandbox = _sandbox_manager.create(user_id)
 
-    # Auto-start dev server so HMR works immediately
     try:
         user_sandbox.sandbox.commands.run(
-            f"cd {user_sandbox.workspace_path} && bun run dev",
-            background=True
+            f"cd {user_sandbox.workspace_path} && bun run dev", background=True
         )
         user_sandbox.dev_server_running = True
-        
-        # Wait for dev server to be ready (max 15 seconds)
+
         for _ in range(15):
             time.sleep(1)
             try:
                 result = user_sandbox.sandbox.commands.run(
                     "curl -s -o /dev/null -w '%{http_code}' http://localhost:5173/ 2>/dev/null || echo '000'",
-                    timeout=3
+                    timeout=3,
                 )
                 if result.stdout.strip() == "200":
                     break
             except:
                 pass
-                
+
     except Exception as e:
         print(f"Warning: Could not auto-start dev server: {e}")
 
@@ -100,9 +96,10 @@ async def stream_agent_events(
         )
         history = result.scalars().all()
 
-        # Limit history to save tokens - codebase itself acts as memory
-        MAX_HISTORY = 6  # Last 3 user/assistant pairs
-        recent_history = history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
+        MAX_HISTORY = 6
+        recent_history = (
+            history[-MAX_HISTORY:] if len(history) > MAX_HISTORY else history
+        )
 
         for msg in recent_history:
             if msg.role == "user":
@@ -117,7 +114,6 @@ async def stream_agent_events(
     ):
         event_type = event.get("event")
 
-        # Stream agent's text tokens in real-time
         if event_type == "on_chat_model_stream":
             chunk = event.get("data", {}).get("chunk")
             if chunk and hasattr(chunk, "content") and chunk.content:

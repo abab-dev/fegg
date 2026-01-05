@@ -17,7 +17,7 @@ export default function Home() {
     setMounted(true)
   }, [])
 
-  // Show loading screen while hydrating
+
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -27,7 +27,7 @@ export default function Home() {
   }
 
   if (token && user) {
-    // If logged in, go straight to dashboard (with prompt if available)
+
     return <Dashboard initialPrompt={pendingPrompt} />
   }
 

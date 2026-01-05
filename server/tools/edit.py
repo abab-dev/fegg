@@ -12,7 +12,7 @@ try:
     from rapidfuzz.distance import Levenshtein
 except ImportError:
     import difflib
-    # Create a simple compatibility layer
+
     class Levenshtein:
         @staticmethod
         def normalized_similarity(a: str, b: str) -> float:
@@ -53,14 +53,11 @@ class CodeEditor:
             full_path.relative_to(self.root)
         except ValueError:
             raise ValueError(
-                f"Path outside workspace root.\n"
-                f"Path: {path}\n"
-                f"Root: {self.root}"
+                f"Path outside workspace root.\nPath: {path}\nRoot: {self.root}"
             )
 
         return full_path
 
-    # Matching strategies
     def _match_exact(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
         """Exact match."""
         start = 0
@@ -71,7 +68,9 @@ class CodeEditor:
             yield idx, idx + len(search)
             start = idx + 1
 
-    def _match_line_trimmed(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
+    def _match_line_trimmed(
+        self, content: str, search: str
+    ) -> Iterator[Tuple[int, int]]:
         """Ignore indentation differences."""
         c_lines = content.splitlines(keepends=True)
         s_lines = search.splitlines(keepends=True)
@@ -101,7 +100,9 @@ class CodeEditor:
             if match:
                 yield line_offsets[i], line_offsets[i + n_search]
 
-    def _match_block_anchor(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
+    def _match_block_anchor(
+        self, content: str, search: str
+    ) -> Iterator[Tuple[int, int]]:
         """Fuzzy match middle lines if start/end match."""
         c_lines = content.splitlines(keepends=True)
         s_lines = search.splitlines(keepends=True)
@@ -165,11 +166,15 @@ class CodeEditor:
             s_idx, e_idx = best_candidate
             yield line_offsets[s_idx], line_offsets[e_idx + 1]
 
-    def _match_whitespace_normalized(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
+    def _match_whitespace_normalized(
+        self, content: str, search: str
+    ) -> Iterator[Tuple[int, int]]:
         """Collapse all whitespace to single space for comparison."""
+
         def normalize(text: str) -> str:
             import re
-            return re.sub(r'\s+', ' ', text).strip()
+
+            return re.sub(r"\s+", " ", text).strip()
 
         normalized_search = normalize(search)
         lines = content.splitlines(keepends=True)
@@ -182,35 +187,44 @@ class CodeEditor:
         search_lines = search.splitlines()
         if len(search_lines) > 1:
             for i in range(len(lines) - len(search_lines) + 1):
-                block = lines[i:i + len(search_lines)]
-                if normalize(''.join(block)) == normalized_search:
+                block = lines[i : i + len(search_lines)]
+                if normalize("".join(block)) == normalized_search:
                     start = sum(len(lines[j]) for j in range(i))
                     end = start + sum(len(l) for l in block)
                     yield start, end
 
-    def _match_indentation_flexible(self, content: str, search: str) -> Iterator[Tuple[int, int]]:
+    def _match_indentation_flexible(
+        self, content: str, search: str
+    ) -> Iterator[Tuple[int, int]]:
         """Match ignoring consistent indentation differences."""
+
         def remove_common_indent(text: str) -> str:
             lines = text.splitlines()
             non_empty = [l for l in lines if l.strip()]
             if not non_empty:
                 return text
             min_indent = min(len(l) - len(l.lstrip()) for l in non_empty)
-            return '\n'.join(l[min_indent:] if len(l) > min_indent else l for l in lines)
+            return "\n".join(
+                l[min_indent:] if len(l) > min_indent else l for l in lines
+            )
 
         normalized_search = remove_common_indent(search)
         content_lines = content.splitlines(keepends=True)
         search_lines = search.splitlines()
 
         for i in range(len(content_lines) - len(search_lines) + 1):
-            block = content_lines[i:i + len(search_lines)]
-            block_text = ''.join(block)
-            if remove_common_indent(block_text.rstrip('\n')) == normalized_search.rstrip('\n'):
+            block = content_lines[i : i + len(search_lines)]
+            block_text = "".join(block)
+            if remove_common_indent(
+                block_text.rstrip("\n")
+            ) == normalized_search.rstrip("\n"):
                 start = sum(len(content_lines[j]) for j in range(i))
                 end = start + len(block_text)
                 yield start, end
 
-    def apply_file_edit(self, path: str, old_code: str, new_code: str, replace_all: bool = False) -> str:
+    def apply_file_edit(
+        self, path: str, old_code: str, new_code: str, replace_all: bool = False
+    ) -> str:
         """
         Apply edit to file using smart matching strategies.
 
@@ -271,4 +285,8 @@ class CodeEditor:
             n=3,
         )
 
-        return f"Successfully edited {path} using '{used_strategy}' strategy:\n" + "".join(diff)
+        return (
+            f"Successfully edited {path} using '{used_strategy}' strategy:\n"
+            + "".join(diff)
+        )
+
