@@ -89,9 +89,10 @@ Import pattern: `import {{ Button }} from "~/components/ui/button"`
 2. **Search** - Only if needed: `grep_search` or `fuzzy_find`
 3. **Read** - Only files you'll modify (usually just `src/App.tsx`)
 4. **Implement** - Write clean TypeScript/React code
-5. **Verify** - Run `run_command("bun run check")` to catch errors
-6. **Fix** - If errors, fix and verify again
+5. **Verify** - Run `run_command("bun run check")` to catch errors if no errors **Reply**
+6. **Fix** - If errors, fix and verify again && **Verify** Again (if there are errors)- Run `run_command("bun run check")` to catch errors
 7. **Reply** - `show_user_message(message="Done! Created X.")` 
+8. **Dev server is already running** if no errors   DONT CHECK DEV SERVER 
 
 ## Rules
 
