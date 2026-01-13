@@ -1,5 +1,7 @@
 import json
 from datetime import datetime
+from typing import Dict
+
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,16 +10,20 @@ from sqlalchemy import select, delete
 from ..database import get_db, Session, Message, async_session
 from ..models import MessageCreate, MessageResponse, SessionUpdate, SessionResponse
 from ..auth import get_current_user
+from ..dependencies import (
+    get_sandbox_manager,
+    get_session_caches,
+    get_pending_messages,
+    get_user_sandbox,
+)
 from ..services.agent_runner import (
     stream_agent_events,
-    get_user_sandbox,
-    destroy_user_sandbox,
+    create_sandbox_for_session,
 )
-from ..services.sandbox_manager import create_sandbox
+from sandbox.sandbox import SandboxManager
+from tools.backend_tools import FileCache
 
 router = APIRouter(prefix="/sessions", tags=["agent"])
-
-_pending_messages: dict[str, tuple[str, str, bool]] = {}
 
 
 VISIBLE_TOOLS = {
@@ -36,6 +42,7 @@ async def send_message(
     body: MessageCreate,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    pending_messages: Dict = Depends(get_pending_messages),
 ):
     user_id = current_user["id"]
 
@@ -63,7 +70,7 @@ async def send_message(
     await db.commit()
 
     needs_sandbox = session.sandbox_id is None
-    _pending_messages[session_id] = (user_id, body.content, needs_sandbox)
+    pending_messages[session_id] = (user_id, body.content, needs_sandbox)
 
     return {"status": "processing", "stream_url": f"/sessions/{session_id}/sse"}
 
@@ -73,6 +80,9 @@ async def stream_events(
     session_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
+    session_caches: Dict[str, FileCache] = Depends(get_session_caches),
+    pending_messages: Dict = Depends(get_pending_messages),
 ):
     result = await db.execute(
         select(Session).where(
@@ -83,7 +93,7 @@ async def stream_events(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    pending = _pending_messages.get(session_id)
+    pending = pending_messages.get(session_id)
     if not pending:
         raise HTTPException(status_code=400, detail="No pending message")
 
@@ -98,7 +108,9 @@ async def stream_events(
         try:
             if needs_sandbox:
                 try:
-                    sandbox_id, preview_url = await create_sandbox(session_id, user_id)
+                    sandbox_id, preview_url = await create_sandbox_for_session(
+                        sandbox_manager, user_id
+                    )
 
                     async with async_session() as db2:
                         result = await db2.execute(
@@ -128,7 +140,9 @@ async def stream_events(
 
             tool_step_map = {}
 
-            async for event in stream_agent_events(user_id, session_id, message):
+            async for event in stream_agent_events(
+                sandbox_manager, session_caches, user_id, session_id, message
+            ):
                 if event["type"] == "token":
                     assistant_content += event.get("content", "")
                     yield f"data: {json.dumps(event)}\n\n"
@@ -229,7 +243,7 @@ async def stream_events(
                     sess.status = "ready"
                 await db2.commit()
         finally:
-            _pending_messages.pop(session_id, None)
+            pending_messages.pop(session_id, None)
 
     return StreamingResponse(
         generate(),
@@ -326,6 +340,7 @@ async def download_session_code(
     session_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
 ):
     result = await db.execute(
         select(Session).where(
@@ -338,7 +353,7 @@ async def download_session_code(
 
     try:
         try:
-            user_sandbox = await get_user_sandbox(current_user["id"])
+            user_sandbox = await get_user_sandbox(sandbox_manager, current_user["id"])
         except Exception:
             raise HTTPException(
                 status_code=410,

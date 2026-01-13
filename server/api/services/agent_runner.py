@@ -1,9 +1,10 @@
-from typing import AsyncGenerator, Dict, Any, Optional
+import time
+from typing import AsyncGenerator, Dict, Any
+
 from langchain_core.messages import HumanMessage, AIMessage
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from sandbox.sandbox import SandboxManager, UserSandbox
+from sandbox.sandbox import SandboxManager
 from agent.agent_e2b import build_graph
 from tools.backend_tools import FileCache
 
@@ -11,29 +12,12 @@ from ..database import async_session, Message
 
 MAX_ITERATIONS = 100
 
-_sandbox_manager = SandboxManager()
 
-_session_caches: Dict[str, FileCache] = {}
-
-
-def get_sandbox_manager() -> SandboxManager:
-    return _sandbox_manager
-
-
-def get_session_cache(session_id: str) -> FileCache:
-    if session_id not in _session_caches:
-        _session_caches[session_id] = FileCache(max_entries=50)
-    return _session_caches[session_id]
-
-
-def clear_session_cache(session_id: str) -> None:
-    _session_caches.pop(session_id, None)
-
-
-async def create_sandbox_for_session(session_id: str, user_id: str) -> tuple[str, str]:
-    import time
-
-    user_sandbox = _sandbox_manager.create(user_id)
+async def create_sandbox_for_session(
+    sandbox_manager: SandboxManager,
+    user_id: str,
+) -> tuple[str, str]:
+    user_sandbox = sandbox_manager.create(user_id)
 
     try:
         user_sandbox.sandbox.commands.run(
@@ -56,34 +40,27 @@ async def create_sandbox_for_session(session_id: str, user_id: str) -> tuple[str
     except Exception as e:
         print(f"Warning: Could not auto-start dev server: {e}")
 
-    preview_url = _sandbox_manager.get_preview_url(user_id, port=5173)
+    preview_url = sandbox_manager.get_preview_url(user_id, port=5173)
 
     return user_sandbox.sandbox_id, preview_url
 
 
-async def get_user_sandbox(user_id: str) -> UserSandbox:
-    user_sandbox = _sandbox_manager.get(user_id)
+async def stream_agent_events(
+    sandbox_manager: SandboxManager,
+    session_caches: Dict[str, FileCache],
+    user_id: str,
+    session_id: str,
+    message: str,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    user_sandbox = sandbox_manager.get(user_id)
     if not user_sandbox:
         raise ValueError(f"No sandbox for user {user_id}")
-    return user_sandbox
 
-
-async def destroy_user_sandbox(user_id: str) -> bool:
-    return _sandbox_manager.destroy(user_id)
-
-
-async def cleanup_all_sandboxes() -> int:
-    return _sandbox_manager.destroy_all()
-
-
-async def stream_agent_events(
-    user_id: str, session_id: str, message: str
-) -> AsyncGenerator[Dict[str, Any], None]:
-    """Stream agent events to the frontend."""
-    user_sandbox = await get_user_sandbox(user_id)
     config = {"recursion_limit": MAX_ITERATIONS}
 
-    file_cache = get_session_cache(session_id)
+    if session_id not in session_caches:
+        session_caches[session_id] = FileCache(max_entries=50)
+    file_cache = session_caches[session_id]
 
     graph = build_graph(user_sandbox, file_cache=file_cache)
 

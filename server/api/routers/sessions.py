@@ -1,14 +1,18 @@
 import uuid
+import logging
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException
 from typing import List
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from ..database import get_db, Session
 from ..models import SessionResponse
 from ..auth import get_current_user
-from ..services.agent_runner import destroy_user_sandbox
+from ..dependencies import get_sandbox_manager, get_user_sandbox
+from sandbox.sandbox import SandboxManager
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -90,6 +94,7 @@ async def delete_session(
     session_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
 ):
     user_id = current_user["id"]
 
@@ -102,7 +107,7 @@ async def delete_session(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        await destroy_user_sandbox(user_id)
+        sandbox_manager.destroy(user_id)
     except Exception:
         pass
 
@@ -112,16 +117,13 @@ async def delete_session(
     return {"status": "terminated"}
 
 
-from ..services.agent_runner import get_user_sandbox
-
-
 @router.get("/{session_id}/files")
 async def list_files(
     session_id: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
 ):
-    """List all files in the session's sandbox workspace."""
     user_id = current_user["id"]
 
     result = await db.execute(
@@ -132,7 +134,7 @@ async def list_files(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        sandbox = await get_user_sandbox(user_id)
+        sandbox = await get_user_sandbox(sandbox_manager, user_id)
     except ValueError:
         return {"files": []}
 
@@ -158,8 +160,6 @@ async def list_files(
 
         return {"files": files}
     except Exception as e:
-        import logging
-
         logging.error(f"Failed to list files for session {session_id}: {e}")
         return {"files": []}
 
@@ -170,8 +170,8 @@ async def get_file_content(
     file_path: str,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
 ):
-    """Get the content of a specific file from the sandbox."""
     user_id = current_user["id"]
 
     result = await db.execute(
@@ -182,7 +182,7 @@ async def get_file_content(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        sandbox = await get_user_sandbox(user_id)
+        sandbox = await get_user_sandbox(sandbox_manager, user_id)
     except ValueError:
         raise HTTPException(
             status_code=404, detail="No active sandbox for this session"
@@ -196,9 +196,6 @@ async def get_file_content(
         raise HTTPException(status_code=404, detail=f"File not found: {file_path}")
 
 
-from pydantic import BaseModel
-
-
 class FileUpdate(BaseModel):
     content: str
 
@@ -210,8 +207,8 @@ async def update_file_content(
     body: FileUpdate,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+    sandbox_manager: SandboxManager = Depends(get_sandbox_manager),
 ):
-    """Update the content of a file in the sandbox."""
     user_id = current_user["id"]
 
     result = await db.execute(
@@ -222,7 +219,7 @@ async def update_file_content(
         raise HTTPException(status_code=404, detail="Session not found")
 
     try:
-        sandbox = await get_user_sandbox(user_id)
+        sandbox = await get_user_sandbox(sandbox_manager, user_id)
     except ValueError:
         raise HTTPException(
             status_code=404, detail="No active sandbox for this session"
